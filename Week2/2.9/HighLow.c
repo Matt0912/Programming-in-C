@@ -1,5 +1,4 @@
 #include <stdio.h>
-<<<<<<< HEAD
 #define NDEBUG
 #include <assert.h>
 #include <stdlib.h>
@@ -54,14 +53,3 @@ void test(void) {
   assert(checkGuess(10, 10) == 1);
   assert(checkGuess(10, 9) == 0);
 }
-=======
-#include <assert.h>
-
-void test(void);
-
-int main(void) {
-  int guess;
-
-  return 0;
-}
->>>>>>> 744393b5fb9a8f8c2c3e19d61cf88e0607007a79
