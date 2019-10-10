@@ -13,8 +13,6 @@ int main(void) {
   srand(time(NULL));
   test();
   random = rand() % 1000;
-  printf("Random number is %d\n", random);
-
   printf("Guess the number I'm thinking of between 1 and 1000: ");
   scanf("%d", &guess);
   while (tries) {
