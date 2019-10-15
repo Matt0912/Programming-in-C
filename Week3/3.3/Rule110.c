@@ -2,8 +2,8 @@
 #include <assert.h>
 #include <time.h>
 #include <stdlib.h>
-#define ARRAYWIDTH 200
-#define ARRAYLENGTH 100
+#define ARRAYWIDTH 75
+#define ARRAYLENGTH 40
 
 void nextLine(int *currentArray, int *newArray);
 int numberTests(int first, int second, int third);
@@ -52,6 +52,9 @@ int numberTests(int first, int second, int third) {
     return 0;
   }
   else if (first == 0 && second == 0 && third == 0) {
+    return 0;
+  }
+  else if ((first != 0 && first != 1) || (third != 0 && third != 1)) {
     return 0;
   }
   else {
