@@ -6,6 +6,10 @@ const char romanNumerals[] = "IVXLCDM";
 const int arabicNumbers[] = {1,5,10,50,100,500,1000};
 #define ARRAYSIZE 7
 
+/* COMMENTS FROM PEER ASSESSMENT
+// db16981@bristol.ac.uk - No issues with code, good testing. 70%
+*/
+
 void test(void);
 int romanToArabic(char *roman);
 int subtractCase(char *roman, int i);
