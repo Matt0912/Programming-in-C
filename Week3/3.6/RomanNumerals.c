@@ -10,6 +10,9 @@ void test(void);
 int romanToArabic(char *roman);
 int subtractCase(char *roman, int i);
 int checkInput(char *roman);
+int checkValid(char *roman);
+int checkRomanNum(char *roman);
+int checkRomanNum2(char *roman);
 
 int main(int argc, char **argv) {
 
@@ -27,10 +30,23 @@ int main(int argc, char **argv) {
   return 0;
 }
 
+/* CARRIES OUT ALL TESTING FUNCTIONS */
 int checkInput(char *roman) {
-  int i=0, j, check, check1, check2, length = strlen(roman), letter1=0, letter2=0;
-  int maxvalue=0;
-  /* CHECKS USER INPUT USES VALID ROMAN NUMERAL CHARACTERS */
+  if (checkValid(roman) == 0) {
+    return 0;
+  }
+  if (checkRomanNum(roman) == 0) {
+    return 0;
+  }
+  if (checkRomanNum2(roman) == 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/* CHECKS USER INPUT USES VALID ROMAN NUMERAL CHARACTERS */
+int checkValid(char *roman) {
+  int i=0, j, check;
   while (roman[i]) {
     check = 0;
     for (j=0;j<ARRAYSIZE;j++) {
@@ -44,21 +60,23 @@ int checkInput(char *roman) {
     }
     i++;
   }
+  return 1;
+}
 
-  /* CHECKS USER INPUT IS A VALID ROMAN NUMERAL */
-  check = 0; check1=0; check2=0; i=0;
+int checkRomanNum(char *roman) {
+  int i=0, j, count=0, count1=0, count2=0, length = strlen(roman);
   while (roman[i]) {
     /* CHECKS FOR REPETITION OF V, L AND D */
     if (roman[i] == romanNumerals[1]) {
-      check++;
+      count++;
     }
     if (roman[i] == romanNumerals[3]) {
-      check1++;
+      count1++;
     }
     if (roman[i] == romanNumerals[5]) {
-      check2++;
+      count2++;
     }
-    if (check > 1 || check1 > 1 || check2 > 1) {
+    if (count > 1 || count1 > 1 || count2 > 1) {
       printf("Invalid number! Can only have one V, L and D per numeral\n");
       return 0;
     }
@@ -75,9 +93,16 @@ int checkInput(char *roman) {
         }
       }
     }
+    i++;
+  }
+  return 1;
+}
 
-    /* CHECKS THAT SUBTRACTED VALUE IS NOT TOO SMALL */
+int checkRomanNum2(char *roman) {
+  int i=0, j, k, letter1=0, letter2=0, maxvalue=0;
+  while (roman[i]) {
     for (j=0;j<ARRAYSIZE;j++) {
+      /* CHECKS THAT SUBTRACTED VALUE IS NOT TOO SMALL */
       if (subtractCase(roman, i)) {
         if (roman[i] == romanNumerals[j]) {
           letter1 = arabicNumbers[j];
@@ -87,30 +112,51 @@ int checkInput(char *roman) {
         }
         if (letter2 > letter1*10) {
           printf("Invalid number! Subtracted numeral must be at least 1/10 the \
-  value of the larger numeral!\n");
+value of the larger numeral!\n");
           return 0;
         }
       }
+      /*CHECKS THAT NUMBERS DECREASE FROM LEFT TO RIGHT */
       if (roman[0] == romanNumerals[j]) {
         maxvalue = arabicNumbers[j];
       }
       if (roman[i] == romanNumerals[j]) {
-        if (arabicNumbers[j] > maxvalue) {
-          printf("Invalid number! Values must decrease from left to right, e.g. MCXII\n");
-          return 0;
+        maxvalue = arabicNumbers[j];
+        /* IF NEXT NUMBER IS GREATER AND IT ISN'T SUBTRACTED, GIVE ERROR */
+        if (subtractCase(roman,i) == 0) {
+          for (k=0;k<ARRAYSIZE;k++) {
+            if (roman[i+1] == romanNumerals[k]) {
+              if (arabicNumbers[k] > maxvalue) {
+                printf("Invalid number! Values must decrease from left to right, e.g. MCXII\n");
+                return 0;
+              }
+            }
+          }
         }
-        else {
-          maxvalue = arabicNumbers[j];
-          printf("MAX VALUE IS %d\n", maxvalue);
+        else if (subtractCase(roman,i)){
+          /* CHECKS FOR CASES SUCH AS XXIIIV - CANNOT SUBTRACT LARGER NUMBER */
+          if (roman[i] == roman[i-1]) {
+            printf("Invalid number! Values must decrease from left to right, e.g. MCXII\n");
+            return 0;
+          }
+          /* CHECKS IF THERE ARE MORE ADDITIONAL VALUES AFTER THE SUBTRACTION */
+          for (k=0;k<ARRAYSIZE;k++) {
+            if (roman[i+2] == romanNumerals[k]) {
+              if (arabicNumbers[k] > maxvalue) {
+                printf("Invalid number! Values must decrease from left to right, e.g. MCXII\n");
+                return 0;
+              }
+            }
+          }
         }
       }
     }
-
     i++;
   }
   return 1;
 }
 
+/* Takes roman numeral input, outputs arabic number equivalent */
 int romanToArabic(char *roman) {
   int i=0, arabic = 0, j;
   while (roman[i]) {
@@ -153,14 +199,25 @@ int subtractCase(char *roman, int i) {
 
 
 void test(void) {
-  assert(checkInput("XXXX") == 0);
-  assert(checkInput("VV") == 0);
-  assert(checkInput("XXJHL") == 0);
+  assert(checkRomanNum("XXXX") == 0);
+  assert(checkRomanNum("IIII") == 0);
+  assert(checkRomanNum("LLL") == 0);
+  assert(checkRomanNum("VV") == 0);
+
+  assert(checkValid("XXJHL") == 0);
+  assert(checkValid("0AJKLXXI") == 0);
+
   assert(checkInput(" ") == 0);
+
+  assert(checkRomanNum2("XXVXX") == 0);
+  assert(checkRomanNum2("XXXLL") == 0);
+  assert(checkRomanNum2("XXVIIX") == 0);
+
   assert(subtractCase("XXIX", 2) == 1);
   assert(subtractCase("XXIX", 1) == 0);
   assert(subtractCase("XXIX", 3) == 0);
   assert(subtractCase("MCM", 1) == 1);
+
   assert(romanToArabic("MCMXCIX") == 1999);
   assert(romanToArabic("MCMLXVII") == 1967);
   assert(romanToArabic("MCDXCI") == 1491);
