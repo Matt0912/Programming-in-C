@@ -8,6 +8,21 @@ const int arabicNumbers[] = {1,5,10,50,100,500,1000};
 
 /* COMMENTS FROM PEER ASSESSMENT
 // db16981@bristol.ac.uk - No issues with code, good testing. 70%
+// yy19612@bristol.ac.uk - The code is appropriately structured and the logic is clear to reader. It can be 
+//complied and excuted normally and the test functions is appropriate as almost all possible input are coverd, 
+//but I think it could be further improved in some aspects. 
+//1. Global variables appering in line 5, 6 are not recommanded in chapter 1.1 - GLOB in house-style guildline; 
+//2. Try to avoid using too deep nesting (e. g. line 123-129), it may not easy to read for readers; 
+//3. Using 'typedef enum bool {False = 0, True = 1} bool;' to replace the 1 or 0 for your 'checkFunc'. 
+//Overall, I would mark this code 65 / 70. 
+// cc19055@bristol.ac.uk - Heavy workload. Most of cases are ok. But it's buggy. When inputting CDIV, your 
+//program should get 404 but it didn't (NOW FIXED). I can see that you convert the question"Is a valid roman numeral?" 
+//into several special cases. But your logic of if & else is not equivalent to the original question. For example, 
+//func checkRomanNum()  outputs that XIXI is valid. func checkRomanNum2() reports CDIV is invalid. 
+//House style: [LLEN] you can break some printf into 2 lines. [REPC]func checkValid() have checked the character, 
+//in the following func, some sentences like if (roman[i] == romanNumerals[j]) is redundant.
+//Testing: much but not convincing.
+//Overall: 59%
 */
 
 void test(void);
@@ -103,7 +118,7 @@ int checkRomanNum(char *roman) {
 }
 
 int checkRomanNum2(char *roman) {
-  int i=0, j, k, letter1=0, letter2=0, maxvalue=0;
+  int i=0, j, k, letter1=1000, letter2=1000, maxvalue=0;
   while (roman[i]) {
     for (j=0;j<ARRAYSIZE;j++) {
       /* CHECKS THAT SUBTRACTED VALUE IS NOT TOO SMALL */
@@ -113,12 +128,13 @@ int checkRomanNum2(char *roman) {
         }
         if (roman[i+1] == romanNumerals[j]) {
           letter2 = arabicNumbers[j];
-        }
-        if (letter2 > letter1*10) {
-          printf("Invalid number! Subtracted numeral must be at least 1/10 the \
+          if (letter2 > letter1*10) {
+            printf("Invalid number! Subtracted numeral must be at least 1/10 the \
 value of the larger numeral!\n");
-          return 0;
+            return 0;
+          }
         }
+
       }
       /*CHECKS THAT NUMBERS DECREASE FROM LEFT TO RIGHT */
       if (roman[0] == romanNumerals[j]) {
