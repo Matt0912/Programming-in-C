@@ -1,11 +1,11 @@
 CC=gcc
 CFLAGS=-pedantic -ansi  -Wall -Wextra -Wfloat-equal -O2
 
-all: RomanNumerals
-RomanNumerals: RomanNumerals.o RomanNumerals.c
-	$(CC) $(CFLAGS) RomanNumerals.c -o RomanNumerals
+all: Wireworld
+Wireworld: Wireworld.o Wireworld.c
+	$(CC) $(CFLAGS) Wireworld.c -o Wireworld
 
 clean:
-	rm -f RomanNumerals RomanNumerals.o
-run: RomanNumerals
-	./RomanNumerals
+	rm -f Wireworld Wireworld.o
+run: Wireworld
+	./Wireworld
