@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     generateNewArray(array, newArray);
     printArray(newArray);
     swapArrays(array, newArray);
-    delay(250);
+    delay(DELAY);
     i++;
   }
 

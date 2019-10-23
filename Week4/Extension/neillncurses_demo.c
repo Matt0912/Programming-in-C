@@ -23,9 +23,9 @@ int main(void)
      }
   }
   /* Use memcpy, not strcpy, because I don't want any null chars in my array */
-  memcpy(a[SIZE/2-1], " lqqqqqqqqqqqqqqqk  ", SIZE);
+  memcpy(a[1], " lqqqqqqqqqqqqqqqk  ", SIZE);
   memcpy(a[SIZE/2  ], " x  HELLO WORLD! x  ", SIZE);
-  memcpy(a[SIZE/2+1], " mqqqqqqqqqqqqqqqj  ", SIZE);
+  memcpy(a[SIZE/2+7], " mqqqqqqqqqqqqqqqj  ", SIZE);
 
   Neill_NCURS_Init(&sw);
   /* For the character 'H', 'E' etc. use red foreground colour, black background,
@@ -69,5 +69,5 @@ void twiddle(char a[SIZE][SIZE])
    c = a[y1][x1];
    a[y1][x1] = a[y2][x2];
    a[y2][x2] = c;
-   
+
 }

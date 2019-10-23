@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h>
 #include <time.h>
+#include "neillncurses.h"
 #define ROWS 40
 #define COLUMNS 40
 /* Max COLUMNS */
@@ -23,12 +24,12 @@ int newCell(int currentCell, int numHeads);
 void printArray(char array[ROWS][COLUMNS]);
 void swapArrays(char array[ROWS][COLUMNS], char newArray[ROWS][COLUMNS]);
 void generateNewArray(char array[ROWS][COLUMNS], char newArray[ROWS][COLUMNS]);
-void delay(int seconds);
 
 int main(int argc, char **argv) {
   FILE* fp;
   char array[ROWS][COLUMNS], newArray[ROWS][COLUMNS];
-  int i=0;
+  /* Initialise window */
+  NCURS_Simplewin sw;
   test();
   /* If user doesn't enter 2 arguments, defaults to wirewcircuit1.txt */
   if(argc!=2) {
@@ -43,17 +44,27 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  Neill_NCURS_Init(&sw);
+  Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_BOLD);
+  Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_BOLD);
+  Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
+  Neill_NCURS_CharStyle(&sw, " ", COLOR_BLACK, COLOR_BLACK, A_BOLD);
+
   readToArray(array, fp);
-  printArray(array);
+  Neill_NCURS_PrintArray(&array[0][0], ROWS, COLUMNS, &sw);
   fclose(fp);
 
-  while (i<GENERATIONS) {
-    generateNewArray(array, newArray);
-    printArray(newArray);
-    swapArrays(array, newArray);
-    delay(250);
-    i++;
-  }
+  do{
+     generateNewArray(array, newArray);
+     Neill_NCURS_PrintArray(&newArray[0][0], ROWS, COLUMNS, &sw);
+     swapArrays(array, newArray);
+     Neill_NCURS_Delay(DELAY);
+     /* Test for mouse click, or ESC key */
+     Neill_NCURS_Events(&sw);
+  }while(!sw.finished);
+
+  atexit(Neill_NCURS_Done);
+  exit(EXIT_SUCCESS);
 
   return 0;
 }
@@ -181,7 +192,8 @@ void swapArrays(char array[ROWS][COLUMNS], char newArray[ROWS][COLUMNS]) {
   }
 }
 
-void printArray(char array[ROWS][COLUMNS]) {
+/* FUNCTIONS NOT NEEDED AFTER ADDITION OF NCURSES */
+/*void printArray(char array[ROWS][COLUMNS]) {
   int x, y;
   for (x=0;x<COLUMNS;x++) {
     for (y=0;y<ROWS;y++) {
@@ -189,11 +201,11 @@ void printArray(char array[ROWS][COLUMNS]) {
     }
     fprintf(stdout, "\n");
   }
-}
+}*/
 
 /* Function to delay each array print */
-void delay(int seconds) {
+/*void delay(int seconds) {
     int milli_seconds = 1000 * seconds;
     clock_t start_time = clock();
     while (clock() < start_time + milli_seconds);
-}
+}*/
