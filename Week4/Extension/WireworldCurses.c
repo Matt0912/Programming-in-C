@@ -1,18 +1,26 @@
+/* MATTHEW MEADES mm16507 - Wireworld cellular automation code
+// This code follows the rules of wireworld as laid out here:
+// https://en.wikipedia.org/wiki/Wireworld  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 #include <time.h>
 #include "neillncurses.h"
+
 #define ROWS 40
 #define COLUMNS 40
+
 /* Max COLUMNS */
 #define MAXCHAR 100
-#define GENERATIONS 1000
 #define PASS 1
 #define FAIL 0
+
 /* Delay in MILLISECONDS */
 #define DELAY 250
+
+/* These are the 4 different types of character allowed in Wireworld
+// All others will cause an error! */
 enum states {empty = ' ', head = 'H', tail = 't', copper = 'c'};
 
 void test(void);
@@ -34,7 +42,8 @@ int main(int argc, char **argv) {
   /* If user doesn't enter 2 arguments, defaults to wirewcircuit1.txt */
   if(argc!=2) {
     argv[1] = "wirewcircuit1.txt";
-    fprintf(stderr,"ERROR: Incorrect usage, defaulted to wirewcircuit1.txt\n");
+    fprintf(stderr,"ERROR: Incorrect usage, try ./WireworldCurses 'textfile.txt'"
+    " - Defaulted to wirewcircuit1.txt\n");
   }
 
   fp = fopen(argv[1], "r");
@@ -44,24 +53,25 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  readToArray(array, fp);
+  fclose(fp);
+
+  /* Set colours and text styles for different letters */
   Neill_NCURS_Init(&sw);
-  Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_BOLD);
-  Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_BOLD);
+  Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_NORMAL);
+  Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_NORMAL);
   Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
   Neill_NCURS_CharStyle(&sw, " ", COLOR_BLACK, COLOR_BLACK, A_BOLD);
 
-  readToArray(array, fp);
   Neill_NCURS_PrintArray(&array[0][0], ROWS, COLUMNS, &sw);
-  fclose(fp);
 
-  do{
+  do {
      generateNewArray(array, newArray);
      Neill_NCURS_PrintArray(&newArray[0][0], ROWS, COLUMNS, &sw);
      swapArrays(array, newArray);
      Neill_NCURS_Delay(DELAY);
-     /* Test for mouse click, or ESC key */
      Neill_NCURS_Events(&sw);
-  }while(!sw.finished);
+  } while(!sw.finished);
 
   atexit(Neill_NCURS_Done);
   exit(EXIT_SUCCESS);
@@ -98,11 +108,11 @@ void test(void) {
 
 /*Reads in line by line, and appends char by char - also tests for invalid chars */
 void readToArray(char array[ROWS][COLUMNS], FILE *fp) {
-  int i, j=0;
+  int i, j = 0;
   char str[MAXCHAR];
 
   while (fgets(str, MAXCHAR, fp) != NULL) {
-    for (i=0;i<ROWS;i++) {
+    for (i=0; i<ROWS; i++) {
       if (checkValid(str[i])) {
         array[j][i] = str[i];
       }
@@ -115,6 +125,7 @@ void readToArray(char array[ROWS][COLUMNS], FILE *fp) {
   }
 }
 
+/* Check that all values read from file are part of wireworld */
 int checkValid(char c) {
   if (c == empty || c==head || c==tail || c==copper) {
     return PASS;
@@ -124,7 +135,7 @@ int checkValid(char c) {
   }
 }
 
-/* Returns value of corresponding new cell in new array */
+/* Returns value of corresponding new cell in new array, based on rules */
 int newCell(int currentCell, int numHeads) {
   if (currentCell == empty) {
     return empty;
@@ -172,6 +183,8 @@ int access(int x, int y) {
   return PASS;
 }
 
+/* Iterates through each cell in array, uses number of heads and current cell
+// value to decide what the corresponding cell in the new array is */
 void generateNewArray(char array[ROWS][COLUMNS], char newArray[ROWS][COLUMNS]) {
   int x, y, numHeads=0;
   for (x=0;x<COLUMNS;x++) {
