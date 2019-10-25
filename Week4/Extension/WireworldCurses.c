@@ -56,8 +56,9 @@ int main(int argc, char **argv) {
   readToArray(array, fp);
   fclose(fp);
 
-  /* Set colours and text styles for different letters */
   Neill_NCURS_Init(&sw);
+  /* Set colours and text styles for different letters
+  // Functions need (  ,  , letter colour, background colour, character set) */
   Neill_NCURS_CharStyle(&sw, "t", COLOR_RED, COLOR_RED, A_NORMAL);
   Neill_NCURS_CharStyle(&sw, "H", COLOR_BLUE, COLOR_BLUE, A_NORMAL);
   Neill_NCURS_CharStyle(&sw, "c", COLOR_YELLOW, COLOR_YELLOW, A_NORMAL);
@@ -117,7 +118,8 @@ void readToArray(char array[ROWS][COLUMNS], FILE *fp) {
         array[j][i] = str[i];
       }
       else {
-        fprintf(stderr, "FILE CONTAINS INVALID INPUT!\n");
+        fprintf(stderr, "FILE CONTAINS INVALID INPUT!\nALLOWED "
+        "CHARACTERS: 'H', 't', 'c', ' '\n");
         exit(1);
       }
     }
