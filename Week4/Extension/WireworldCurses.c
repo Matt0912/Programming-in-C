@@ -113,7 +113,7 @@ void readToArray(char array[ROWS][COLUMNS], FILE *fp) {
   char str[MAXCHAR];
 
   while (fgets(str, MAXCHAR, fp) != NULL) {
-    for (i=0; i<ROWS; i++) {
+    for (i=0; i<COLUMNS; i++) {
       if (checkValid(str[i])) {
         array[j][i] = str[i];
       }
