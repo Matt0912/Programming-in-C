@@ -1,21 +1,29 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
-#define HEIGHT 20
-#define WIDTH 20
+#include <time.h>
+#define MAXHEIGHT 20
+#define MAXWIDTH 20
+/* Delay between maze prints (ms) */
+#define DELAY 100
 enum fileInputs {WALL = '#', SPACE = ' ', PATH = '.'};
+#define TEMPWALL '/'
 enum bool {FAIL, SUCCESS};
 
 void test(void);
-void readFile(char maze[HEIGHT][WIDTH], FILE *fp);
-int findStart(char maze[HEIGHT][WIDTH]);
-int explore(int x, int y, char maze[HEIGHT][WIDTH]);
-int isExit(int x, int y, char maze[HEIGHT][WIDTH]);
-void printMaze(char maze[HEIGHT][WIDTH]);
+void readFile(char maze[MAXHEIGHT][MAXWIDTH], FILE *fp, int *mazeWidth, int *mazeHeight);
+int checkValid(char c);
+int findStart(char maze[MAXHEIGHT][MAXWIDTH], int *startx, int *starty);
+int explore(int x, int y, char maze[MAXHEIGHT][MAXWIDTH], int *wC, int *mazeWidth, int *mazeHeight);
+void deadEnd(int x, int y, char maze[MAXHEIGHT][MAXWIDTH], int *wC);
+int isExit(int x, int y, char maze[MAXHEIGHT][MAXWIDTH]);
+void printMaze(char maze[MAXHEIGHT][MAXWIDTH], int *mazeWidth, int *mazeHeight);
+void delay(int seconds);
 
 int main(int argc, char **argv) {
   FILE* fp;
-  char maze[HEIGHT][WIDTH];
+  char maze[MAXHEIGHT][MAXWIDTH];
+  int wallCount = 0, startx = 0, starty = 0, mazeWidth = 0, mazeHeight = 0;
   test();
 
   if(argc!=2) {
@@ -30,87 +38,140 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  readFile(maze, fp);
-  printMaze(maze);
-  explore(0,1,maze);
-  printMaze(maze);
+  readFile(maze, fp, &mazeWidth, &mazeHeight);
+  fprintf(stdout, "%d %d\n", mazeWidth, mazeHeight);
+  if (findStart(maze, &startx, &starty)) {
+    explore(startx, starty, maze, &wallCount, &mazeWidth, &mazeHeight);
+  }
+
 
   return 0;
 }
 
 void test(void) {
-  char testInput[HEIGHT][WIDTH] = {{'#',' ','#','#'},
+  /*char testInput[MAXHEIGHT][MAXWIDTH] = {{'#',' ','#','#'},
                                    {'#',' ',' ','#'},
                                    {'#','#',' ','#'}};
+*/
 
-  assert(findStart(testInput) == 501);
+  assert(checkValid(' ') == SUCCESS);
+  assert(checkValid('#') == SUCCESS);
+  assert(checkValid('.') == SUCCESS);
+  assert(checkValid('\n') == SUCCESS);
+  assert(checkValid('4') == FAIL);
+  assert(checkValid('P') == FAIL);
 
 }
 
-void readFile(char maze[HEIGHT][WIDTH], FILE *fp) {
-  int i, j=0;
-  char str[WIDTH];
+void readFile(char maze[MAXHEIGHT][MAXWIDTH], FILE *fp, int *mazeWidth, int *mazeHeight) {
+  int i, j=0, count = 0;
+  char str[MAXWIDTH];
 
-  while (fgets(str, WIDTH+1, fp) != NULL) {
-    for (i=0;i<WIDTH;i++) {
-      maze[i][j] = str[i];
+  while (fgets(str, MAXWIDTH+1, fp) != NULL) {
+    count = 0;
+    for (i=0;i<MAXWIDTH+1;i++) {
+      if (checkValid(str[i])) {
+        maze[i][j] = str[i];
+        count++;
+      }
+      else {
+        if (count > *mazeWidth) {
+          *mazeWidth = count;
+        }
+      }
     }
     j++;
+  }
+  *mazeHeight = j;
+}
+
+int checkValid(char c) {
+  if (c == WALL || c == SPACE || c == PATH || c == '\n') {
+    return SUCCESS;
+  }
+  else {
+    return FAIL;
   }
 }
 
 /* READ FILE SHOULD REMOVE ALL SPACE FROM LEFT SIDE TO START OF MAZE */
 
-int findStart(char maze[HEIGHT][WIDTH]) {
+int findStart(char maze[MAXHEIGHT][MAXWIDTH], int *startx, int *starty) {
   int i;
-  for (i = 0; i < HEIGHT; i++) {
+  for (i = 0; i < MAXHEIGHT; i++) {
     if (maze[i][0] == SPACE) {
-      return i;
+      *startx = i;
     }
   }
-  for (i = 0; i < WIDTH; i++) {
+  for (i = 0; i < MAXWIDTH; i++) {
     if (maze[0][i] == SPACE) {
-      return i + 500;
+      *starty = i;
     }
   }
-  return FAIL;
+  return SUCCESS;
 }
 
-int explore(int x, int y, char maze[HEIGHT][WIDTH]) {
-  if (x == WIDTH - 1 || y == HEIGHT - 1) {
+int explore(int x, int y, char maze[MAXHEIGHT][MAXWIDTH], int *wC, int *mazeWidth, int *mazeHeight) {
+  if (x == *mazeWidth || y == *mazeHeight) {
+    printMaze(maze, mazeWidth, mazeHeight);
+    fprintf(stdout, "%d %d\n", *mazeWidth, *mazeHeight);
     return SUCCESS;
-    printMaze(maze);
   }
+  /* IF NEW POSITION IS SPACE, TURN IN TO PATH */
   if (maze[x][y] == SPACE) {
+    (*wC) = 0;
     maze[x][y] = PATH;
+    delay(DELAY);
+    printMaze(maze, mazeWidth, mazeHeight);
   }
-  else if (maze[x][y] == WALL) {
+  /* IF NEW POSITION IS WALL, DON'T EXPLORE THIS DIRECTION */
+  else if (maze[x][y] == WALL || maze[x][y] == TEMPWALL) {
+    (*wC)++;
+    return FAIL;
+  }
+
+  else if (maze[x][y] == PATH) {
     return FAIL;
   }
   /* IF WE CAN GO RIGHT */
-  if (explore(x+1, y, maze)) {
+  if (explore(x+1, y, maze, wC, mazeWidth, mazeHeight)) {
     return SUCCESS;
   }
   /* IF WE CAN GO UP */
-  if (explore(x, y+1, maze)) {
+  if (explore(x, y+1, maze, wC, mazeWidth, mazeHeight)) {
     return SUCCESS;
   }
   /* IF WE CAN GO LEFT */
-  if (explore(x-1, y, maze)) {
+  if (explore(x-1, y, maze, wC, mazeWidth, mazeHeight)) {
     return SUCCESS;
   }
   /* IF WE CAN GO DOWN */
-  if (explore(x, y-1, maze)) {
+  if (explore(x, y-1, maze, wC, mazeWidth, mazeHeight)) {
     return SUCCESS;
+  }
+
+  /* IF SURROUNDED BY WALLS, DEFINITELY DEADEND, SO REPLACE WITH TEMPORARY WALL */
+  if ((*wC) > 2) {
+    maze[x][y] = TEMPWALL;
   }
   return FAIL;
 }
 
-void printMaze(char maze[HEIGHT][WIDTH]) {
+void printMaze(char maze[MAXHEIGHT][MAXWIDTH], int *mazeWidth, int *mazeHeight) {
   int x, y;
-  for (x=0;x<WIDTH;x++) {
-    for (y=0;y<HEIGHT;y++) {
+  for (x=0;x<(*mazeHeight);x++) {
+    for (y=0;y<(*mazeWidth);y++) {
+      if (maze[y][x] == TEMPWALL) {
+        maze[y][x] = SPACE;
+      }
       fprintf(stdout, "%c", maze[y][x]);
     }
   }
+}
+
+/* Function to delay each array print - include <time.h> */
+void delay(int seconds) {
+    int milli_seconds = 1000 * seconds;
+    clock_t start_time = clock();
+    while (clock() < start_time + milli_seconds);
 }
