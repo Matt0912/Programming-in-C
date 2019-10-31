@@ -39,7 +39,6 @@ int main(int argc, char **argv) {
   }
 
   readFile(maze, fp, &mazeWidth, &mazeHeight);
-  fprintf(stdout, "%d %d\n", mazeWidth, mazeHeight);
   if (findStart(maze, &startx, &starty)) {
     explore(startx, starty, maze, &wallCount, &mazeWidth, &mazeHeight);
   }
