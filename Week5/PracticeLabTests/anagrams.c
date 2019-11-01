@@ -3,10 +3,10 @@
 #include <ctype.h>
 #include <assert.h>
 #define ALPHA 26
+enum bool {FAIL, PASS};
 
 int anagram(char s1[], char s2[]);
-int sameWord(char s1[], char s2[]);
-int sumArrays(int used1[], int used2[]);
+int derange(char s1[], char s2[]);
 void test(void);
 
 int main(void) {
@@ -24,47 +24,55 @@ void test(void) {
   assert(anagram("listen", "silent") == 1);
   assert(anagram("orchestra", "carthorse") == 1);
   /* Two identical words are not anagrams */
-  assert(anagram("elvis", "elvi") == 0);
+  assert(anagram("elvis", "elvis") == 0);
   assert(anagram("neill", "neil") == 0);
   assert(anagram("neil", "neill") == 0);
   assert(anagram("horse", "short") == 0);
+
+  assert(derange("elvis", "lives") == 0);
+  assert(derange("dreads", "sadder") == 1);
+  assert(derange("replays", "parsley") == 1);
+  assert(derange("listen", "silent") == 0);
+  assert(derange("orchestra", "carthorse") == 1);
 }
 
 int anagram(char s1[], char s2[]) {
-  int i=0, used1[ALPHA] = {0}, used2[ALPHA] = {0};
+  int i=0, used[ALPHA] = {0};
   char c;
-  while (s1[i]) {
-    c = tolower(s1[i]);
-    used1[c-'a']++;
-    i++;
-  }
-  i = 0;
-  while (s2[i]) {
-    c = tolower(s2[i]);
-    used2[c-'a']++;
-    i++;
-  }
+  if (strcmp(s1, s2) != 0 && strlen(s1) == strlen(s2)) {
+    while (s1[i]) {
+      c = tolower(s1[i]);
+      used[c-'a']++;
+      c = tolower(s2[i]);
+      used[c-'a']--;
+      i++;
+    }
 
-  if (sumArrays(used1, used2) == 0) {
-    return 1;
+    for (i=0; i < ALPHA; i++) {
+      if (used[i] != 0) {
+        return FAIL;
+      }
+    }
+    return PASS;
+  }
+  return FAIL;
+}
+
+int derange(char s1[], char s2[]) {
+  int i = 0;
+  char c1, c2;
+  if (anagram(s1, s2)) {
+    while (s1[i]) {
+      c1 = tolower(s1[i]);
+      c2 = tolower(s2[i]);
+      if (c1 == c2) {
+        return FAIL;
+      }
+      i++;
+    }
+    return PASS;
   }
   else {
-    return 0;
+    return FAIL;
   }
-}
-
-int sumArrays(int used1[], int used2[]) {
-  int i, sum = 0, count = 0;
-  for (i=0; i<ALPHA; i++) {
-    sum = used1[i] - used2[i];
-    if (sum != 0) {
-      count++;
-    }
-  }
-  return count;
-}
-
-int sameWord(char s1[], char s2[]) {
-  s1[1] = s2[2];
-  return 1;
 }

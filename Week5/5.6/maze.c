@@ -5,7 +5,7 @@
 #define MAXHEIGHT 20
 #define MAXWIDTH 20
 /* Delay between maze prints (ms) */
-#define DELAY 100
+#define DELAY 50
 enum fileInputs {WALL = '#', SPACE = ' ', PATH = '.'};
 #define TEMPWALL '/'
 enum bool {FAIL, SUCCESS};
