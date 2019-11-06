@@ -5,12 +5,12 @@
 #include <stdlib.h>
 
 #define ALPHA 26
-#define MAXLEN 50
+#define MAXWORDLEN 50
 #define MAXANAGRAMS 20
 enum bool {FAIL, PASS};
 
 typedef struct anagramList {
-  char wordList[MAXANAGRAMS][MAXLEN];
+  char wordList[MAXANAGRAMS][MAXWORDLEN];
   int listlength;
   struct anagramList *next;
 } anagramList;
@@ -21,12 +21,12 @@ void printList(anagramList *cp);
 
 int main(void) {
   FILE* fp;
-  char currentWord[MAXLEN];
+  char currentWord[MAXWORDLEN];
   anagramList head = {{{""},{""}}, 0, NULL}, *cp = &head;
   int found;
   test();
 
-  if ((fp = fopen("eng_370k_shuffle.txt", "r")) == NULL) {
+  if ((fp = fopen("eng_370k_shuffle2.txt", "r")) == NULL) {
     fprintf(stderr, "ERROR - Unable to open eng_370k_shuffle.txt");
     exit(1);
   }
@@ -36,15 +36,15 @@ int main(void) {
     cp = &head;
     while (found == FAIL) {
       if (isAnagram(currentWord, cp->wordList[0])) {
-        strcpy(cp->wordList[cp->listlength], currentWord);
         cp->listlength = cp->listlength + 1;
+        strcpy(cp->wordList[cp->listlength], currentWord);
         found = PASS;
       }
       else if (cp->next == NULL){
         cp->next = (anagramList *)malloc(sizeof(anagramList));
         cp = cp->next;
         strcpy(cp->wordList[0], currentWord);
-        cp->listlength = 0;
+        cp->listlength = 1;
         cp->next = NULL;
         found = PASS;
       }
@@ -52,7 +52,12 @@ int main(void) {
     }
   }
 
-  printList(cp);
+  printList(&head);
+  /*
+  fprintf(stdout, "%s\n", head.wordList[0]);
+  fprintf(stdout, "%s\n", head.next->wordList[0] );
+  fprintf(stdout, "%s\n", head.next->next->wordList[0] );
+  */
 
   return 0;
 }
@@ -71,12 +76,17 @@ void test(void) {
 }
 
 void printList(anagramList *cp) {
-  int i;
+  int i, count = 0;
   while (cp->next != NULL) {
-    for (i = 0; i < cp->listlength; i++) {
-      fprintf(stdout, "%s ", cp->wordList[i]);
+    count++;
+    if (cp->listlength > 1) {
+      fprintf(stdout, "%d: ", cp->listlength);
+      for (i = 0; i <= cp->listlength; i++) {
+        fprintf(stdout, "%s ", cp->wordList[i]);
+      }
+      fprintf(stdout, "\n");
     }
-    fprintf(stdout, "%d\n", cp->listlength);
+    cp = cp->next;
   }
 }
 
