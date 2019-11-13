@@ -1,11 +1,11 @@
 CC=gcc
 CFLAGS=-pedantic -ansi  -Wall -Wextra -Wfloat-equal -O2
 
-all: 8tile
-8tile: 8tile.o 8tile.c
-	$(CC) $(CFLAGS) 8tile.c -o 8tile
+all: 73
+73: 73.o 73.c
+	$(CC) $(CFLAGS) 73.c -o 73
 
 clean:
-	rm -f 8tile 8tile.o
-run: 8tile
-	./8tile
+	rm -f 73 73.o
+run: 73
+	./73

@@ -12,30 +12,27 @@
 
 #define SIZE 3
 #define SPACE ' '
-#define QUEUESIZE 500000
-#define MAXMOVES 150
-#define TESTSIZE 20
 #define DELAY 500
 
 enum bool {FALSE, TRUE};
 
-typedef struct board {
+typedef struct node {
   char board[SIZE][SIZE];
-  int permNumber;
-  int globalIndex;
-  int parent;
-} Board;
+  int index;
+  struct node *parent;
+  struct node *prevNode;
+} Node;
 
 void test(void);
 int isValid(char userInput[]);
 int isComplete(char board[SIZE][SIZE]);
-int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]);
-void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUESIZE]);
-void addToQueue(Board Queue[QUEUESIZE], char board[SIZE][SIZE], int index, int parent);
+int isDuplicate(Node currentNode);
+void initialiseBoard(char board[SIZE][SIZE], char userInput[]);
+Node* newNode(char board[SIZE][SIZE], int index, Node *parent, Node *prevNode);
 void findSpace(char board[SIZE][SIZE], int *x, int *y);
-int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
+/*int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
                  int *currentIndex, Board Solutions[MAXMOVES]);
-void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex);
+void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex); */
 int access(int x, int y);
 void copyBoard(char newBoard[SIZE][SIZE], char currentBoard[SIZE][SIZE]);
 void printBoard(char board[SIZE][SIZE]);
@@ -43,20 +40,18 @@ void swap(char *a, char *b);
 void delay(int seconds);
 
 int main(int argc, char **argv) {
-  int currentIndex = 0, i = 0;
-  char board[SIZE][SIZE], userInput[10];
-  static Board Queue[QUEUESIZE];
-  static Board Solutions[MAXMOVES];
+  char board[SIZE][SIZE], userInput[10] = "12345678 ";
+  Node *point;
 
   test();
-
+  /*
   if (argc == 2) {
     if (isValid(argv[1])) {
       strcpy(userInput, argv[1]);
     }
     else {
-      fprintf(stderr, "INVALID INPUT - SHOULD CONTAIN NUMBERS 0 - 8 "
-      "AND A SPACE ONLY: E.G. '1234 5678'\n");
+      fprintf(stderr, "INVALID INPUT - SHOULD ONLY CONTAIN NUMBERS 0 - 8 "
+      "AND A SPACE: E.G. '1234 5678'\n");
       exit(1);
     }
   }
@@ -64,18 +59,18 @@ int main(int argc, char **argv) {
     fprintf(stderr,"ERROR: Incorrect usage: e.g ./8tile '12345678 '\n");
     exit(1);
   }
-
-  /* i = Queue position of board which is being permuted
-  // currentIndex = Current number of boards in the queue (i.e. the current
-  // length of the queue) */
-  initialiseBoard(board, userInput, Queue);
+  */
+  initialiseBoard(board, userInput);
+  point = newNode(board, 0, NULL, NULL);
+  printBoard(point->board);
+  /*
   while (i < QUEUESIZE/3) {
     if (permuteBoard(Queue, Queue[i], &currentIndex, Solutions) == TRUE) {
       i = QUEUESIZE;
     }
     i++;
   }
-
+  */
   return FALSE;
 }
 
@@ -133,16 +128,18 @@ int isComplete(char board[SIZE][SIZE]) {
 }
 
 /* TESTED: Loops through all previous boards in the queue to find duplicates */
-int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]) {
+int isDuplicate(Node currentNode) {
   int x, y, i = 0, count;
-  while (i < QUEUESIZE) {
+  Node *parent;
+  while (parent != NULL) {
+    parent = currentNode->parent;
     count = 0;
     for (y=0; y<SIZE; y++) {
       for (x=0; x<SIZE; x++) {
-        if (Queue[i].board[y][x] != currentBoard[y][x]) {
-          i++;
+        if (currentNode->board[y][x] != prevNode->board[y][x]) {
+          currentNode = &prevNode;
         }
-        else if (Queue[i].board[y][x] == currentBoard[y][x]) {
+        else if (currentNode->board[y][x] != prevNode->board[y][x]) {
           count++;
         }
         if (count == SIZE*SIZE) {
@@ -154,8 +151,8 @@ int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]) {
   return FALSE;
 }
 
-/* TESTED: Populates initial board with user input and adds to first queue position */
-void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUESIZE]) {
+/* TESTED: Populates initial board with user input */
+void initialiseBoard(char board[SIZE][SIZE], char userInput[]) {
   int i = 0, x, y;
   while (userInput[i]) {
     for (y=0; y<SIZE; y++) {
@@ -165,19 +162,22 @@ void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUE
       }
     }
   }
-  addToQueue(Queue, board, 0, 0);
 }
 
 /* TESTED: Adds current board to end of queue (position = index) */
-void addToQueue(Board Queue[QUEUESIZE], char board[SIZE][SIZE], int index, int parent) {
+Node* newNode(char board[SIZE][SIZE], int index, Node *parent, Node *prevNode) {
   int x, y;
+  Node *current = (Node *)malloc(sizeof(Node));
   for (y=0; y<SIZE; y++) {
     for (x=0; x<SIZE; x++) {
-      Queue[index].board[y][x] = board[y][x];
+      current->board[y][x] = board[y][x];
     }
   }
-  Queue[index].globalIndex = index;
-  Queue[index].parent = parent;
+  current->index = index;
+  current->parent = parent;
+  current->prevNode = prevNode;
+
+  return current;
 }
 
 /* TESTED: Finds the co-ordinates of the space in the grid */
@@ -196,26 +196,25 @@ void findSpace(char board[SIZE][SIZE], int *x, int *y) {
 /* TESTED: Finds all unique permutations of 'currentBoard' and
 // adds them to the end of the queue.
 // Also checks if the board is complete and calls function to trace parents */
-int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
-                 int *currentIndex, Board Solutions[MAXMOVES]) {
+int permuteBoard(Node *current, int *currentIndex) {
   int spaceX = -1, spaceY = -1, i;
   char newBoard[SIZE][SIZE];
 
-  if (isComplete(currentBoard.board)) {
-    traceParents(Queue, Solutions, currentBoard.globalIndex);
+  if (isComplete(current->board)) {
+    /*traceParents(Queue, Solutions, currentBoard.index);*/
     return TRUE;
   }
 
-  findSpace(currentBoard.board, &spaceX, &spaceY);
+  findSpace(current->board, &spaceX, &spaceY);
 
   for (i = -1; i <= 1; i = i+2) {
-    copyBoard(newBoard, currentBoard.board);
-    /*IF WE CAN SWAP TO THE LEFT OR RIGHT*/
+    copyBoard(newBoard, current->board);
+    /*IF WE CAN SWAP TO THE LEFT OR RIGHT */
     if (access(spaceX + i, spaceY)) {
       swap(&newBoard[spaceY][spaceX+i], &newBoard[spaceY][spaceX]);
-      if (!isDuplicate(Queue, newBoard)) {
+      if (!isDuplicate(current)) {
         (*currentIndex)++;
-        addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
+        newNode(newBoard, *currentIndex, current, current);
       }
     }
 
@@ -224,9 +223,9 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
     /*IF WE CAN SWAP ABOVE OR BELOW THE SPACE*/
     if (access(spaceX, spaceY + i)) {
       swap(&newBoard[spaceY+i][spaceX], &newBoard[spaceY][spaceX]);
-      if (!isDuplicate(Queue, newBoard)) {
+      if (!isDuplicate(current)) {
         (*currentIndex)++;
-        addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
+        newNode(Queue, newBoard, *currentIndex, currentBoard.index);
       }
     }
   }
@@ -236,18 +235,18 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
 }
 
 /* Once solution is found, follows parents back to original input to find all
-// the moves leading up to the final solution and prints in order */
+// the moves leading up to the final solution and prints in order
 void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex) {
   int moves = 0, i;
   fprintf(stdout, "SOLUTION FOUND! \n\n");
 
-  while (Queue[currentIndex].globalIndex != 0) {
-    addToQueue(Solutions, Queue[currentIndex].board, moves, 0);
+  while (Queue[currentIndex].index != 0) {
+    newNode(Solutions, Queue[currentIndex].board, moves, 0);
     currentIndex = Queue[currentIndex].parent;
     moves++;
   }
 
-  addToQueue(Solutions, Queue[0].board, moves, 0);
+  newNode(Solutions, Queue[0].board, moves, 0);
 
   for (i = 0; i <= moves; i++) {
     if (i == 0) {
@@ -261,7 +260,7 @@ void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int current
   }
 }
 
-/* TESTED: Copies content from current board on to new board */
+/ TESTED: Copies content from current board on to new board */
 void copyBoard(char newBoard[SIZE][SIZE], char currentBoard[SIZE][SIZE]) {
   int x, y;
   for (y=0; y<SIZE; y++) {
@@ -311,10 +310,8 @@ void delay(int seconds) {
 
 void test(void) {
   char userInput[] = "4312 8657";
-  int x = 0, y = 0, currentIndex = 0;
+  int x = 0, y = 0;
   char board[SIZE][SIZE], newBoard[SIZE][SIZE];
-  static Board Queue[TESTSIZE];
-  static Board Solutions[TESTSIZE];
 
   /* Test isValid */
   assert(isValid(userInput) == TRUE);
@@ -329,25 +326,25 @@ void test(void) {
   assert(isValid("1235678 \n") == FALSE);
 
   /* Test initialiseBoard */
-  initialiseBoard(board, userInput, Queue);
+  initialiseBoard(board, userInput);
   assert(board[0][1] == userInput[1]);
   assert(board[1][1] == userInput[4]);
   assert(board[2][2] == userInput[8]);
-  initialiseBoard(board, "123456 78", Queue);
+  initialiseBoard(board, "123456 78");
   assert(board[0][0] == '1');
   assert(board[1][2] == '6');
   assert(board[2][0] == ' ');
 
   /* Test isComplete */
-  initialiseBoard(board, userInput, Queue);
+  initialiseBoard(board, userInput);
   assert(isComplete(board) == FALSE);
-  initialiseBoard(board, "12345678 ", Queue);
+  initialiseBoard(board, "12345678 ");
   assert(isComplete(board) == TRUE);
-  initialiseBoard(board, " 23456781", Queue);
-  assert(isComplete(Queue[0].board) == FALSE);
+  initialiseBoard(board, " 23456781");
+  /*assert(isComplete(Queue[0].board) == FALSE); */
 
   /* Test swap */
-  initialiseBoard(board, "1234567 8", Queue);
+  initialiseBoard(board, "1234567 8");
   assert(board[2][1] == ' ');
   assert(board[2][2] == '8');
   swap(&board[2][1], &board[2][2]);
@@ -357,44 +354,44 @@ void test(void) {
   assert(board[1][2] == ' ');
   assert(board[2][2] == '6');
 
-  /* Test addToQueue */
-  initialiseBoard(board, "1234567 8", Queue);
-  addToQueue(Queue, board, 1, 0);
+  /* Test newNode *
+  initialiseBoard(board, "1234567 8");
+  newNode(Queue, board, 1, 0);
   assert(Queue[0].board[0][0] == Queue[1].board[0][0]);
   assert(Queue[0].board[1][2] == Queue[1].board[1][2]);
   assert(Queue[0].board[2][0] == Queue[1].board[2][0]);
-  assert(Queue[1].parent == Queue[0].globalIndex);
-  assert(Queue[1].globalIndex == 1);
+  assert(Queue[1].parent == Queue[0].index);
+  assert(Queue[1].index == 1);
   swap(&board[2][2], &board[1][2]);
-  addToQueue(Queue, board, 2, 0);
+  newNode(Queue, board, 2, 0);
   assert(Queue[0].board[0][0] == Queue[2].board[0][0]);
   assert(Queue[0].board[1][2] == Queue[2].board[2][2]);
   assert(Queue[0].board[2][2] == Queue[2].board[1][2]);
-  assert(Queue[1].parent == Queue[0].globalIndex);
-  assert(Queue[2].globalIndex == 2);
+  assert(Queue[1].parent == Queue[0].index);
+  assert(Queue[2].index == 2);
 
-  /* Test isDuplicate */
-  initialiseBoard(board, "87654321 ", Queue);
+   Test isDuplicate *
+  initialiseBoard(board, "87654321 ");
   assert(isDuplicate(Queue, board) == TRUE);
   swap(&board[2][2], &board[1][2]);
   assert(isDuplicate(Queue, board) == FALSE);
   swap(&board[2][2], &board[1][2]);
   assert(isDuplicate(Queue, board) == TRUE);
 
-  /* Test findSpace */
-  initialiseBoard(board, "4312 8657", Queue);
+  / Test findSpace */
+  initialiseBoard(board, "4312 8657");
   findSpace(board, &x, &y);
   assert(x == 1 && y == 1);
   swap(&board[1][1], &board[1][2]);
   findSpace(board, &x, &y);
   assert(x == 2 && y == 1);
-  initialiseBoard(board, " 12345678", Queue);
+  initialiseBoard(board, " 12345678");
   findSpace(board, &x, &y);
   assert(x == 0 && y == 0);
 
   /*Test copyBoard */
-  initialiseBoard(board, "12345678 ", Queue);
-  initialiseBoard(newBoard, " 87654321", Queue);
+  initialiseBoard(board, "12345678 ");
+  initialiseBoard(newBoard, " 87654321");
   assert(board[0][1] != newBoard[0][1]);
   assert(board[2][2] != newBoard[2][2]);
   assert(board[1][2] != newBoard[1][2]);
@@ -412,13 +409,13 @@ void test(void) {
   assert(access(1,2) == TRUE);
   assert(access(0,0) == TRUE);
 
-  /* Test permuteBoard */
-  memset(Queue, 0x00, 3*sizeof(Queue[0])); /* Reset Queue */
-  initialiseBoard(board, "1 2345678", Queue);
+  /* Test permuteBoard *
+  memset(Queue, 0x00, 3*sizeof(Queue[0])); / Reset Queue *
+  initialiseBoard(board, "1 2345678");
   assert(permuteBoard(Queue, Queue[0], &currentIndex, Solutions) == FALSE);
-  assert(Queue[1].globalIndex == 1);
-  assert(Queue[3].globalIndex == 3);
-  /*These will fail if order of permutations changes */
+  assert(Queue[1].index == 1);
+  assert(Queue[3].index == 3);
+  /These will fail if order of permutations changes *
   assert(Queue[0].board[2][2] == Queue[1].board[2][2]);
   assert(Queue[2].board[2][2] == Queue[3].board[2][2]);
   assert(Queue[0].board[0][0] == Queue[1].board[0][1]);
@@ -428,13 +425,15 @@ void test(void) {
   assert(Queue[0].board[1][1] == Queue[3].board[0][1]);
   assert(Queue[2].board[1][1] == Queue[3].board[0][1]);
   assert(permuteBoard(Queue, Queue[1], &currentIndex, Solutions) == FALSE);
-  assert(Queue[4].globalIndex == 4);initialiseBoard(board, "1 2345678", Queue);
+  assert(Queue[4].index == 4);
+
+  initialiseBoard(board, "1 2345678");
   assert(Queue[4].parent == 1);
   currentIndex = 0;
 
-  /* Test traceParents */
-  /* ALL OF THE BELOW WAS COMMENTED OUT AFTER TESTING TO STOP PRINTING */
-  /* ******** TO TEST TRACEPARENTS, UNCOMMENT BELOW CODE ************
+  / Test traceParents /
+  / ALL OF THE BELOW WAS COMMENTED OUT AFTER TESTING TO STOP PRINTING *
+  / ******** TO TEST TRACEPARENTS, UNCOMMENT BELOW CODE ***********
   initialiseBoard(board, "12345678 ", Queue);
   assert(permuteBoard(Queue, Queue[0], &currentIndex, Solutions) == TRUE);
 
@@ -444,8 +443,8 @@ void test(void) {
   assert(Solutions[2].board[0][0] == Queue[0].board[0][0]);
   assert(Solutions[1].board[0][0] == Queue[1].board[0][0]);
   assert(Solutions[0].board[0][0] == Queue[4].board[0][0]);
-  assert(Solutions[0].globalIndex == Solutions[1].parent);
-  assert(Solutions[1].globalIndex == Solutions[2].parent);
+  assert(Solutions[0].index == Solutions[1].parent);
+  assert(Solutions[1].index == Solutions[2].parent);
   */
 
 }
