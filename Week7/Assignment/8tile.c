@@ -1,14 +1,18 @@
+/* 8tile solver code
+// This code takes an input from the user in the form e.g. "21435687 "
+// which populates a 2D 3 x 3 grid, then solves it through calculating
+// all possible permutations of the original grid until it is in the form
+// "12345678 " - https://en.wikipedia.org/wiki/Sliding_puzzle */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define NDEBUG
 #include <assert.h>
 #include <ctype.h>
 #include <time.h>
 
 #define SIZE 3
 #define SPACE ' '
-#define QUEUESIZE 10000000
+#define QUEUESIZE 500000
 #define MAXMOVES 150
 #define DELAY 500
 
@@ -22,17 +26,22 @@ typedef struct board {
 } Board;
 
 void test(void);
+/* TESTED */
 int isValid(char userInput[]);
+/* TESTED */
 int isComplete(char board[SIZE][SIZE]);
 int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]);
+/* TESTED */
 void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUESIZE]);
+/* TESTED */
 void addToQueue(Board Queue[QUEUESIZE], char board[SIZE][SIZE], int index, int parent);
 void findSpace(char board[SIZE][SIZE], int *x, int *y);
 int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard, int *currentIndex, Board Solutions[MAXMOVES]);
 void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex);
 int access(int x, int y);
-void copyBoard(char currentBoard[SIZE][SIZE], char newBoard[SIZE][SIZE]);
+void copyBoard(char newBoard[SIZE][SIZE], char currentBoard[SIZE][SIZE]);
 void printBoard(char board[SIZE][SIZE]);
+/* TESTED */
 void swap(char *a, char *b);
 void delay(int seconds);
 
@@ -44,16 +53,22 @@ int main(int argc, char **argv) {
 
   test();
 
-  if(argc!=2) {
-    fprintf(stderr,"ERROR: Incorrect usage: e.g ./8tile '1234567 8'\n");
-    exit(1);
-  }
-  else {
+  if (argc == 2) {
     if (isValid(argv[1])) {
       strcpy(userInput, argv[1]);
     }
+    else {
+      exit(1);
+    }
+  }
+  else if (argc != 2) {
+    fprintf(stderr,"ERROR: Incorrect usage: e.g ./8tile '12345678 '\n");
+    exit(1);
   }
 
+  /* i = Queue position of board which is being permuted
+  // currentIndex = Current number of boards in the queue (i.e. the current length
+  // of the queue) */
   initialiseBoard(board, userInput, Queue);
   while (i < QUEUESIZE/3) {
     if (permuteBoard(Queue, Queue[i], &currentIndex, Solutions) == TRUE) {
@@ -71,24 +86,61 @@ void test(void) {
   char board[SIZE][SIZE];
   static Board Queue[QUEUESIZE];
 
+  /* Test isValid */
   assert(isValid(userInput) == TRUE);
   assert(isValid("567123 48") == TRUE);
   assert(isValid("56712348 ") == TRUE);
   assert(isValid(" 56712348") == TRUE);
+  assert(isValid(" 56711348") == FALSE);
   assert(isValid(" 5671234") == FALSE);
   assert(isValid(" 56712!4p") == FALSE);
   assert(isValid(" 56710042") == FALSE);
   assert(isValid("123 5 6 7") == FALSE);
+  assert(isValid("1235678 \n") == FALSE);
 
+  /* Test initialiseBoard */
+  initialiseBoard(board, userInput, Queue);
+  assert(board[0][1] == userInput[1]);
+  assert(board[1][1] == userInput[4]);
+  assert(board[2][2] == userInput[8]);
+  initialiseBoard(board, "123456 78", Queue);
+  assert(board[0][0] == '1');
+  assert(board[1][2] == '6');
+  assert(board[2][0] == ' ');
+
+  /* Test isComplete */
   initialiseBoard(board, userInput, Queue);
   assert(isComplete(board) == FALSE);
   initialiseBoard(board, "12345678 ", Queue);
   assert(isComplete(board) == TRUE);
   initialiseBoard(board, " 23456781", Queue);
+  assert(isComplete(Queue[0].board) == FALSE);
+
+  /* Test swap */
+  initialiseBoard(board, "1234567 8", Queue);
+  swap(&board[2][1], &board[2][2]);
+  assert(isComplete(board) == TRUE);
+  swap(&board[2][2], &board[1][2]);
   assert(isComplete(board) == FALSE);
 
-  swap(&board[2][1], &board[2][2]);
-  assert(isComplete(board) == FALSE);
+  /* Test addToQueue */
+  initialiseBoard(board, "1234567 8", Queue);
+  addToQueue(Queue, board, 1, 0);
+  assert(Queue[0].board[0][0] == Queue[1].board[0][0]);
+  assert(Queue[0].board[1][2] == Queue[1].board[1][2]);
+  assert(Queue[0].board[2][0] == Queue[1].board[2][0]);
+  swap(&board[2][2], &board[1][2]);
+  addToQueue(Queue, board, 2, 0);
+  assert(Queue[0].board[0][0] == Queue[2].board[0][0]);
+  assert(Queue[0].board[1][2] == Queue[2].board[2][2]);
+  assert(Queue[0].board[2][2] == Queue[2].board[1][2]);
+
+  initialiseBoard(board, "123 46578", Queue);
+  addToQueue(Queue, board, 1, 0);
+  assert(isDuplicate(Queue, board) == TRUE);
+  swap(&board[2][2], &board[1][2]);
+  addToQueue(Queue, board, 1, 0);
+  /*assert(isDuplicate(Queue, board) == FALSE); */
 
   initialiseBoard(board, "4312 8657", Queue);
   findSpace(board, &x, &y);
@@ -97,9 +149,7 @@ void test(void) {
   findSpace(board, &x, &y);
   assert(x == 2 && y == 1);
 
-  initialiseBoard(board, userInput, Queue);
-  addToQueue(Queue, board, 1, 0);
-  assert(isDuplicate(Queue, board) == TRUE);
+
 
 }
 
@@ -110,14 +160,14 @@ int isValid(char userInput[]) {
   if (length != SIZE*SIZE) {
     fprintf(stderr, "INVALID INPUT LENGTH - SHOULD CONTAIN NUMBERS 0 - 8 "
     "AND A SPACE: E.G. '1234 5678'\n");
-    exit(1);
+    return FALSE;
   }
   while (userInput[i]) {
     if (isdigit(userInput[i]) || userInput[i] == SPACE) {
       if (userInput[i] == '9' || userInput[i] == '0') {
         fprintf(stderr, "INVALID INPUT - SHOULD CONTAIN NUMBERS 0 - 8 "
-        "AND A SPACE: E.G. '1234 5678'\n");
-        exit(1);
+        "AND A SPACE ONLY: E.G. '1234 5678'\n");
+        return FALSE;
       }
     else {
       i++;
@@ -125,8 +175,8 @@ int isValid(char userInput[]) {
   }
     else {
       fprintf(stderr, "INVALID INPUT - SHOULD CONTAIN NUMBERS 0 - 8 "
-      "AND A SPACE: E.G. '1234 5678'\n");
-      exit(1);
+      "AND A SPACE ONLY: E.G. '1234 5678'\n");
+      return FALSE;
     }
   }
   for (i=0; i<length; i++) {
@@ -142,7 +192,7 @@ int isValid(char userInput[]) {
     if (count[i] > 1) {
       fprintf(stderr, "INVALID INPUT - SHOULD ONLY CONTAIN ONE OF EACH NUMBER"
       " FROM 0 - 8 (AND A SPACE) \n");
-      exit(1);
+      return FALSE;
     }
   }
   return TRUE;
@@ -186,7 +236,7 @@ int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]) {
   return FALSE;
 }
 
-/* Populates initial board with user input */
+/* TESTED: Populates initial board with user input */
 void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUESIZE]) {
   int i = 0, x, y;
   while (userInput[i]) {
@@ -200,6 +250,7 @@ void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUE
   addToQueue(Queue, board, 0, 0);
 }
 
+/* TESTED: Adds current board to end of queue (position = index) */
 void addToQueue(Board Queue[QUEUESIZE], char board[SIZE][SIZE], int index, int parent) {
   int x, y;
   for (y=0; y<SIZE; y++) {
@@ -211,6 +262,7 @@ void addToQueue(Board Queue[QUEUESIZE], char board[SIZE][SIZE], int index, int p
   Queue[index].parent = parent;
 }
 
+/* TESTED: Finds the co-ordinates of the space in the grid */
 void findSpace(char board[SIZE][SIZE], int *x, int *y) {
   int row, col;
   for (row=0; row<SIZE; row++) {
@@ -223,6 +275,9 @@ void findSpace(char board[SIZE][SIZE], int *x, int *y) {
   }
 }
 
+/* TESTED: Finds all unique permutations of 'currentBoard' and adds them to the end
+// of the queue.
+// Also checks if the board is complete and calls function to trace parents */
 int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard, int *currentIndex, Board Solutions[MAXMOVES]) {
   int spaceX = -1, spaceY = -1, i;
   char newBoard[SIZE][SIZE];
@@ -234,34 +289,35 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard, int *currentIndex, 
 
   findSpace(currentBoard.board, &spaceX, &spaceY);
 
-    for (i = -1; i <= 1; i = i+2) {
-      copyBoard(currentBoard.board, newBoard);
-      /*IF WE CAN SWAP TO THE RIGHT OR LEFT */
-      if (access(spaceX + i, spaceY)) {
-        swap(&newBoard[spaceY][spaceX+i], &newBoard[spaceY][spaceX]);
-        if (!isDuplicate(Queue, newBoard)) {
-          (*currentIndex)++;
-          addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
-        }
-      }
-
-      copyBoard(currentBoard.board, newBoard);
-
-      /*IF WE CAN SWAP BELOW OR ABOVE THE SPACE*/
-      if (access(spaceX, spaceY + i)) {
-        swap(&newBoard[spaceY+i][spaceX], &newBoard[spaceY][spaceX]);
-        if (!isDuplicate(Queue, newBoard)) {
-          (*currentIndex)++;
-          addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
-        }
+  for (i = -1; i <= 1; i = i+2) {
+    copyBoard(newBoard, currentBoard.board);
+    /*IF WE CAN SWAP TO THE RIGHT OR LEFT */
+    if (access(spaceX + i, spaceY)) {
+      swap(&newBoard[spaceY][spaceX+i], &newBoard[spaceY][spaceX]);
+      if (!isDuplicate(Queue, newBoard)) {
+        (*currentIndex)++;
+        addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
       }
     }
 
+    copyBoard(newBoard, currentBoard.board);
+
+    /*IF WE CAN SWAP BELOW OR ABOVE THE SPACE*/
+    if (access(spaceX, spaceY + i)) {
+      swap(&newBoard[spaceY+i][spaceX], &newBoard[spaceY][spaceX]);
+      if (!isDuplicate(Queue, newBoard)) {
+        (*currentIndex)++;
+        addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
+      }
+    }
+  }
 
   return FALSE;
 
 }
 
+/* Once solution is found, follows parents back to original input to find all
+// the moves leading up to the final solution and prints in order */
 void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex) {
   int moves = 0, i;
   fprintf(stdout, "SOLUTION FOUND! \n\n");
@@ -286,8 +342,8 @@ void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int current
   }
 }
 
-
-void copyBoard(char currentBoard[SIZE][SIZE], char newBoard[SIZE][SIZE]) {
+/* TESTED: Copies content from current board on to new board */
+void copyBoard(char newBoard[SIZE][SIZE], char currentBoard[SIZE][SIZE]) {
   int x, y;
   for (y=0; y<SIZE; y++) {
     for (x=0; x<SIZE; x++) {
