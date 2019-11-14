@@ -4,7 +4,8 @@
 // all possible permutations of the original grid until it is in the form
 // "12345678 " - https://en.wikipedia.org/wiki/Sliding_puzzle */
 
-/* DO INVERSIONS FUNCTION TO TEST IF SOLVABLE */
+/* TEST IS SOLVABLE FUNCTION MORE - PUT USERINPUT CHECKING IN Function
+// MAIN IS TOO BUSY */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +30,7 @@ typedef struct board {
 
 void test(void);
 int isValid(char userInput[]);
+int isSolvable(char userInput[]);
 int isComplete(char board[SIZE][SIZE]);
 int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]);
 void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUESIZE]);
@@ -63,6 +65,11 @@ int main(int argc, char **argv) {
   }
   else if (argc != 2) {
     fprintf(stderr,"ERROR: Incorrect usage: e.g ./8tile '12345678 '\n");
+    exit(1);
+  }
+
+  if (!isSolvable(userInput)) {
+    fprintf(stderr, "'%s' is unsolvable! Please try again \n", userInput);
     exit(1);
   }
 
@@ -115,6 +122,28 @@ int isValid(char userInput[]) {
     }
   }
   return TRUE;
+}
+
+int isSolvable(char userInput[]) {
+  int count = 0, i, j, a=0, b=0;
+  for (i = 0; i < SIZE*SIZE - 1; i++) {
+    a = userInput[i];
+    for (j = i+1; j < SIZE*SIZE; j++) {
+      b = userInput[j];
+      if (a != SPACE && b != SPACE) {
+        if (a > b) {
+          count++;
+        }
+      }
+    }
+  }
+
+  if (count % 2 == 0) {
+    return TRUE;
+  }
+  else {
+    return FALSE;
+  }
 }
 
 /* TESTED: Checks if board is in final state of 123 456 78  */
@@ -328,6 +357,16 @@ void test(void) {
   assert(isValid(" 56710042") == FALSE);
   assert(isValid("123 5 6 7") == FALSE);
   assert(isValid("1235678 \n") == FALSE);
+
+  /* Test isSolvable */
+  assert(isSolvable("12345678 ") == TRUE);
+  assert(isSolvable("1234567 8") == TRUE);
+  assert(isSolvable("12345 678") == TRUE);
+  assert(isSolvable("182 43765") == TRUE);
+  assert(isSolvable("812 43765") == FALSE);
+  assert(isSolvable("7125 4836") == FALSE);
+  assert(isSolvable("7125348 6") == FALSE);
+
 
   /* Test initialiseBoard */
   initialiseBoard(board, userInput, Queue);
