@@ -10,13 +10,15 @@
 #include <assert.h>
 #include <ctype.h>
 #include <time.h>
+#include "neillsdl2.h"
 
 #define SIZE 3
 #define SPACE ' '
 #define QUEUESIZE 500000
 #define MAXMOVES 150
 #define TESTSIZE 20
-#define DELAY 500
+#define RECTSIZE 200
+#define MILLISECONDDELAY 300
 
 enum bool {FALSE, TRUE};
 
@@ -38,11 +40,10 @@ void findSpace(char board[SIZE][SIZE], int *x, int *y);
 int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
                  int *currentIndex, Board Solutions[MAXMOVES]);
 void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex);
+void runSDL(Board* Solutions, int moves);
 int access(int x, int y);
 void copyBoard(char newBoard[SIZE][SIZE], char currentBoard[SIZE][SIZE]);
-void printBoard(char board[SIZE][SIZE]);
 void swap(char *a, char *b);
-void delay(int seconds);
 
 int main(int argc, char **argv) {
   int currentIndex = 0, i = 0;
@@ -73,7 +74,75 @@ int main(int argc, char **argv) {
   return FALSE;
 }
 
-/* Difficult to test due to **argv, isValid and isSolvable thoroughly tested */
+/* Initialise SDL window and outputs boards from solutions array */
+void runSDL(Board* Solutions, int moves) {
+  int x, y, boardNumber = moves;
+  SDL_Simplewin sw;
+  SDL_Rect rectangle;
+  fntrow fontdata[FNTCHARS][FNTHEIGHT];
+  char currentChar;
+  char movesString[15];
+
+  Neill_SDL_ReadFont(fontdata, "mode7.fnt");
+
+  rectangle.w = RECTSIZE;
+  rectangle.h = RECTSIZE;
+
+  Neill_SDL_Init(&sw);
+
+  do {
+    if (boardNumber > 0) {
+     Neill_SDL_SetDrawColour(&sw, 192,192,192);
+    }
+    else {
+     Neill_SDL_SetDrawColour(&sw, 0, 255, 0);
+    }
+    
+    for (y = 0; y < SIZE; y++) {
+      for (x = 0; x < SIZE; x++) {
+        rectangle.x = RECTSIZE * x;
+        rectangle.y = RECTSIZE * y;
+        SDL_RenderDrawRect(sw.renderer, &rectangle);
+      }
+    }
+
+    /* Use 2 seperate loops otherwise window bugs out */
+    for (y = 0; y < SIZE; y++) {
+      for (x = 0; x < SIZE; x++) {
+        currentChar = Solutions[boardNumber].board[y][x];
+        Neill_SDL_DrawChar(&sw, fontdata, currentChar,
+          RECTSIZE/2 + RECTSIZE * x, RECTSIZE/2 + RECTSIZE * y);
+      }
+    }
+
+    Neill_SDL_DrawString(&sw, fontdata, "MOVES:",
+    (RECTSIZE * SIZE) + RECTSIZE/5, RECTSIZE/5);
+    sprintf(movesString, "%d", moves-boardNumber);
+    Neill_SDL_DrawString(&sw, fontdata, movesString,
+      (RECTSIZE * SIZE) + RECTSIZE/5, 2*RECTSIZE/5);
+
+    if (boardNumber > 0) {
+      boardNumber--;
+    }
+    else {
+      Neill_SDL_DrawString(&sw, fontdata, "SOLUTION",
+      (RECTSIZE * SIZE) + RECTSIZE/10, 2*RECTSIZE);
+      Neill_SDL_DrawString(&sw, fontdata, "FOUND!",
+      (RECTSIZE * SIZE) + RECTSIZE/5, 2*RECTSIZE + FNTHEIGHT + 10);
+    }
+
+    SDL_Delay(MILLISECONDDELAY);
+    Neill_SDL_UpdateScreen(&sw);
+    /* Check for ESC event - mouse click etc. */
+    Neill_SDL_Events(&sw);
+
+  }while(!sw.finished);
+
+  SDL_Quit();
+  atexit(SDL_Quit);
+}
+
+/* Difficult to test - isValid and isSolvable thoroughly tested */
 int checkInput(int argc, char **argv) {
   char userInput[10];
   if (argc == 2) {
@@ -138,8 +207,7 @@ int isValid(char userInput[]) {
 }
 
 /* TESTED: Finds number of 'inversions' - if that number is odd, puzzle
-// is impossible, if even, puzzle is solvable
-// https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable */
+// is impossible, if even, puzzle is solvable */
 int isSolvable(char userInput[]) {
   int count = 0, i, j;
   for (i = 0; i < SIZE*SIZE - 1; i++) {
@@ -160,7 +228,7 @@ int isSolvable(char userInput[]) {
   }
 }
 
-/* TESTED: Checks if board is in final state of 12345678  */
+/* TESTED: Checks if board is in final state of 123 456 78  */
 int isComplete(char board[SIZE][SIZE]) {
   int x, y;
   char completeBoard[SIZE][SIZE] = {{"123"},
@@ -254,7 +322,7 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
 
   for (i = -1; i <= 1; i = i+2) {
     copyBoard(newBoard, currentBoard.board);
-    /* IF WE CAN SWAP TO THE LEFT OR RIGHT */
+    /*IF WE CAN SWAP TO THE LEFT OR RIGHT*/
     if (access(spaceX + i, spaceY)) {
       swap(&newBoard[spaceY][spaceX+i], &newBoard[spaceY][spaceX]);
       if (!isDuplicate(Queue, newBoard)) {
@@ -264,7 +332,8 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
     }
 
     copyBoard(newBoard, currentBoard.board);
-    /* IF WE CAN SWAP ABOVE OR BELOW THE SPACE */
+
+    /*IF WE CAN SWAP ABOVE OR BELOW THE SPACE*/
     if (access(spaceX, spaceY + i)) {
       swap(&newBoard[spaceY+i][spaceX], &newBoard[spaceY][spaceX]);
       if (!isDuplicate(Queue, newBoard)) {
@@ -280,9 +349,8 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
 
 /* Once solution is found, follows parents back to original input to find all
 // the moves leading up to the final solution and prints in order */
-/* IF FUNCTION IS EDITED, UNCOMMENT CODE IN test() TO CHECK IT STILL WORKS */
 void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex) {
-  int moves = 0, i;
+  int moves = 0;
   fprintf(stdout, "SOLUTION FOUND! \n\n");
 
   while (Queue[currentIndex].globalIndex != 0) {
@@ -293,16 +361,8 @@ void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int current
 
   addToQueue(Solutions, Queue[0].board, moves, 0);
 
-  for (i = 0; i <= moves; i++) {
-    if (i == 0) {
-      fprintf(stdout, "USER INPUT: \n");
-    }
-    else {
-      fprintf(stdout, "MOVE %d: \n", i);
-    }
-    printBoard(Solutions[moves - i].board);
-    delay(DELAY);
-  }
+  /* Print out solutions to SDL window */
+  runSDL(Solutions, moves);
 }
 
 /* TESTED: Copies content from current board on to new board */
@@ -326,31 +386,12 @@ int access(int x, int y) {
   return TRUE;
 }
 
-/* TESTED (VISUALLY) */
-void printBoard(char board[SIZE][SIZE]) {
-  int x, y;
-  for (y=0; y<SIZE; y++) {
-    for (x=0; x<SIZE; x++) {
-      fprintf(stdout, "%c ", board[y][x]);
-    }
-    fprintf(stdout,"\n");
-  }
-  fprintf(stdout,"\n");
-}
-
 /* TESTED */
 void swap(char *a, char *b) {
   char temp;
   temp = *a;
   *a = *b;
   *b = temp;
-}
-
-/* TESTED: Function to delay each array print - include <time.h> */
-void delay(int seconds) {
-    int milli_seconds = 1000 * seconds;
-    clock_t start_time = clock();
-    while (clock() < start_time + milli_seconds);
 }
 
 void test(void) {
