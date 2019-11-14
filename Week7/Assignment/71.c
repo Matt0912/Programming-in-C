@@ -29,6 +29,7 @@ typedef struct board {
 } Board;
 
 void test(void);
+int checkInput(int argc, char **argv);
 int isValid(char userInput[]);
 int isSolvable(char userInput[]);
 int isComplete(char board[SIZE][SIZE]);
@@ -53,23 +54,10 @@ int main(int argc, char **argv) {
 
   test();
 
-  if (argc == 2) {
-    if (isValid(argv[1])) {
-      strcpy(userInput, argv[1]);
-    }
-    else {
-      fprintf(stderr, "INVALID INPUT - SHOULD CONTAIN NUMBERS 0 - 8 "
-      "AND A SPACE ONLY: E.G. '1234 5678'\n");
-      exit(1);
-    }
+  if (checkInput(argc, argv)) {
+    strcpy(userInput, argv[1]);
   }
-  else if (argc != 2) {
-    fprintf(stderr,"ERROR: Incorrect usage: e.g ./8tile '12345678 '\n");
-    exit(1);
-  }
-
-  if (!isSolvable(userInput)) {
-    fprintf(stderr, "'%s' is unsolvable! Please try again \n", userInput);
+  else {
     exit(1);
   }
 
@@ -84,6 +72,32 @@ int main(int argc, char **argv) {
     i++;
   }
 
+  return FALSE;
+}
+
+int checkInput(int argc, char **argv) {
+  char userInput[10];
+  if (argc == 2) {
+    strcpy(userInput, argv[1]);
+    if (isValid(userInput)) {
+        if (isSolvable(userInput)) {
+          return TRUE;
+        }
+        else {
+          fprintf(stderr, "'%s' IS UNSOLVABLE! PLEASE TRY AGAIN \n", userInput);
+          return FALSE;
+        }
+    }
+    else if (!isValid(userInput)) {
+      fprintf(stderr, "INVALID INPUT - SHOULD CONTAIN NUMBERS 0 - 8 "
+      "AND A SPACE ONLY: E.G. '1234 5678'\n");
+      return FALSE;
+    }
+  }
+  else if (argc != 2) {
+    fprintf(stderr,"ERROR: Incorrect usage: e.g ./8tile '12345678 '\n");
+    return FALSE;
+  }
   return FALSE;
 }
 
@@ -124,14 +138,14 @@ int isValid(char userInput[]) {
   return TRUE;
 }
 
+/* TESTED: Finds number of 'inversions' - if that number is odd, puzzle
+// is impossible, if even, puzzle is solvable */
 int isSolvable(char userInput[]) {
-  int count = 0, i, j, a=0, b=0;
+  int count = 0, i, j;
   for (i = 0; i < SIZE*SIZE - 1; i++) {
-    a = userInput[i];
     for (j = i+1; j < SIZE*SIZE; j++) {
-      b = userInput[j];
-      if (a != SPACE && b != SPACE) {
-        if (a > b) {
+      if ((userInput[i] != SPACE) && (userInput[j] != SPACE)) {
+        if (userInput[i] > userInput[j]) {
           count++;
         }
       }
@@ -340,7 +354,7 @@ void delay(int seconds) {
 }
 
 void test(void) {
-  char userInput[] = "4312 8657";
+  char userInput[] = "4312 8567";
   int x = 0, y = 0, currentIndex = 0;
   char board[SIZE][SIZE], newBoard[SIZE][SIZE];
   static Board Queue[TESTSIZE];
@@ -360,12 +374,16 @@ void test(void) {
 
   /* Test isSolvable */
   assert(isSolvable("12345678 ") == TRUE);
-  assert(isSolvable("1234567 8") == TRUE);
+  assert(isSolvable(userInput) == TRUE);
   assert(isSolvable("12345 678") == TRUE);
   assert(isSolvable("182 43765") == TRUE);
+  assert(isSolvable("528417 36") == TRUE);
   assert(isSolvable("812 43765") == FALSE);
   assert(isSolvable("7125 4836") == FALSE);
   assert(isSolvable("7125348 6") == FALSE);
+
+  /*Test checkInput */
+  /*assert(checkInput(3, "1234567 8") == FALSE);*/
 
 
   /* Test initialiseBoard */
