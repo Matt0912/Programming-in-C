@@ -95,9 +95,9 @@ void runSDL(Board* Solutions, int moves) {
      Neill_SDL_SetDrawColour(&sw, 192,192,192);
     }
     else {
-     Neill_SDL_SetDrawColour(&sw, 0, 255, 0);
+     Neill_SDL_SetDrawColour(&sw, 50, 205, 50);
     }
-    
+
     for (y = 0; y < SIZE; y++) {
       for (x = 0; x < SIZE; x++) {
         rectangle.x = RECTSIZE * x;

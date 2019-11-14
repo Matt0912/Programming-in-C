@@ -3,6 +3,7 @@
 // which populates a 2D 3 x 3 grid, then solves it through calculating
 // all possible permutations of the original grid until it is in the form
 // "12345678 " - https://en.wikipedia.org/wiki/Sliding_puzzle */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,30 +19,29 @@ enum bool {FALSE, TRUE};
 
 typedef struct node {
   char board[SIZE][SIZE];
-  int index;
   struct node *parent;
-  struct node *prevNode;
+  struct node *nextNode;
 } Node;
 
 void test(void);
 int isValid(char userInput[]);
 int isComplete(char board[SIZE][SIZE]);
-int isDuplicate(Node currentNode);
+int isDuplicate(Node *endNode, char board[SIZE][SIZE]);
 void initialiseBoard(char board[SIZE][SIZE], char userInput[]);
-Node* newNode(char board[SIZE][SIZE], int index, Node *parent, Node *prevNode);
+Node* newNode(char board[SIZE][SIZE], Node *parent, Node *nextNode);
 void findSpace(char board[SIZE][SIZE], int *x, int *y);
-/*int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
-                 int *currentIndex, Board Solutions[MAXMOVES]);
-void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex); */
+int permuteBoard(Node *parentNode, Node *endNode);
+/*void traceParents(Board Queue[QUEUESIZE], Board Solutions[MAXMOVES], int currentIndex); */
 int access(int x, int y);
 void copyBoard(char newBoard[SIZE][SIZE], char currentBoard[SIZE][SIZE]);
 void printBoard(char board[SIZE][SIZE]);
 void swap(char *a, char *b);
 void delay(int seconds);
+void freeNodes(Node* endNode);
 
-int main(int argc, char **argv) {
-  char board[SIZE][SIZE], userInput[10] = "12345678 ";
-  Node *point;
+int main(void) {
+  char board[SIZE][SIZE], userInput[10] = "1234567 8";
+  Node *currentNode, *startNode;
 
   test();
   /*
@@ -61,8 +61,10 @@ int main(int argc, char **argv) {
   }
   */
   initialiseBoard(board, userInput);
-  point = newNode(board, 0, NULL, NULL);
-  printBoard(point->board);
+  startNode = newNode(board, NULL, NULL);
+  currentNode = startNode;
+  printBoard(startNode->board);
+  permuteBoard(currentNode, startNode);
   /*
   while (i < QUEUESIZE/3) {
     if (permuteBoard(Queue, Queue[i], &currentIndex, Solutions) == TRUE) {
@@ -71,6 +73,8 @@ int main(int argc, char **argv) {
     i++;
   }
   */
+
+  freeNodes(startNode);
   return FALSE;
 }
 
@@ -128,26 +132,26 @@ int isComplete(char board[SIZE][SIZE]) {
 }
 
 /* TESTED: Loops through all previous boards in the queue to find duplicates */
-int isDuplicate(Node currentNode) {
-  int x, y, i = 0, count;
-  Node *parent;
-  while (parent != NULL) {
-    parent = currentNode->parent;
+/* NEED TO EDIT */
+int isDuplicate(Node *startNode, char board[SIZE][SIZE]) {
+  int x, y, count;
+  while (startNode->nextNode != NULL) {
     count = 0;
     for (y=0; y<SIZE; y++) {
       for (x=0; x<SIZE; x++) {
-        if (currentNode->board[y][x] != prevNode->board[y][x]) {
-          currentNode = &prevNode;
+        if (startNode->board[y][x] != board[y][x]) {
+          startNode = startNode->nextNode;
         }
-        else if (currentNode->board[y][x] != prevNode->board[y][x]) {
+        else if (startNode->board[y][x] == board[y][x]) {
           count++;
-        }
-        if (count == SIZE*SIZE) {
-          return TRUE;
         }
       }
     }
+    if (count == SIZE*SIZE) {
+      return TRUE;
+    }
   }
+
   return FALSE;
 }
 
@@ -164,8 +168,8 @@ void initialiseBoard(char board[SIZE][SIZE], char userInput[]) {
   }
 }
 
-/* TESTED: Adds current board to end of queue (position = index) */
-Node* newNode(char board[SIZE][SIZE], int index, Node *parent, Node *prevNode) {
+/* TESTED: Returns pointer to new node */
+Node* newNode(char board[SIZE][SIZE], Node *parent, Node *nextNode) {
   int x, y;
   Node *current = (Node *)malloc(sizeof(Node));
   for (y=0; y<SIZE; y++) {
@@ -173,9 +177,8 @@ Node* newNode(char board[SIZE][SIZE], int index, Node *parent, Node *prevNode) {
       current->board[y][x] = board[y][x];
     }
   }
-  current->index = index;
   current->parent = parent;
-  current->prevNode = prevNode;
+  current->nextNode = nextNode;
 
   return current;
 }
@@ -196,38 +199,44 @@ void findSpace(char board[SIZE][SIZE], int *x, int *y) {
 /* TESTED: Finds all unique permutations of 'currentBoard' and
 // adds them to the end of the queue.
 // Also checks if the board is complete and calls function to trace parents */
-int permuteBoard(Node *current, int *currentIndex) {
+int permuteBoard(Node *parentNode, Node *startNode) {
   int spaceX = -1, spaceY = -1, i;
   char newBoard[SIZE][SIZE];
+  Node *currentNode = parentNode;
+  while (!isComplete(parentNode->board)) {
+    if (isComplete(parentNode->board)) {
+      /*traceParents(Queue, Solutions, currentBoard.index);*/
+      return TRUE;
+    }
 
-  if (isComplete(current->board)) {
-    /*traceParents(Queue, Solutions, currentBoard.index);*/
-    return TRUE;
-  }
+    findSpace(parentNode->board, &spaceX, &spaceY);
 
-  findSpace(current->board, &spaceX, &spaceY);
+    for (i = -1; i <= 1; i = i+2) {
+      copyBoard(newBoard, parentNode->board);
+      /*IF WE CAN SWAP TO THE LEFT OR RIGHT */
+      if (access(spaceX + i, spaceY)) {
+        swap(&newBoard[spaceY][spaceX+i], &newBoard[spaceY][spaceX]);
+        if (!isDuplicate(startNode, newBoard)) {
+          currentNode->nextNode = newNode(newBoard, parentNode, NULL);
+          currentNode = currentNode->nextNode;
+          printBoard(currentNode->board);
+        }
+      }
 
-  for (i = -1; i <= 1; i = i+2) {
-    copyBoard(newBoard, current->board);
-    /*IF WE CAN SWAP TO THE LEFT OR RIGHT */
-    if (access(spaceX + i, spaceY)) {
-      swap(&newBoard[spaceY][spaceX+i], &newBoard[spaceY][spaceX]);
-      if (!isDuplicate(current)) {
-        (*currentIndex)++;
-        newNode(newBoard, *currentIndex, current, current);
+      copyBoard(newBoard, parentNode->board);
+
+      /*IF WE CAN SWAP ABOVE OR BELOW THE SPACE*/
+      if (access(spaceX, spaceY + i)) {
+        swap(&newBoard[spaceY+i][spaceX], &newBoard[spaceY][spaceX]);
+        if (!isDuplicate(startNode, newBoard)) {
+          currentNode->nextNode = newNode(newBoard, parentNode, NULL);
+          currentNode = currentNode->nextNode;
+          printBoard(currentNode->board);
+        }
       }
     }
 
-    copyBoard(newBoard, currentBoard.board);
-
-    /*IF WE CAN SWAP ABOVE OR BELOW THE SPACE*/
-    if (access(spaceX, spaceY + i)) {
-      swap(&newBoard[spaceY+i][spaceX], &newBoard[spaceY][spaceX]);
-      if (!isDuplicate(current)) {
-        (*currentIndex)++;
-        newNode(Queue, newBoard, *currentIndex, currentBoard.index);
-      }
-    }
+    parentNode = parentNode->nextNode;
   }
 
   return FALSE;
@@ -306,6 +315,16 @@ void delay(int seconds) {
     int milli_seconds = 1000 * seconds;
     clock_t start_time = clock();
     while (clock() < start_time + milli_seconds);
+}
+
+void freeNodes(Node* startNode) {
+  Node* temp;
+
+  while (startNode->nextNode != NULL) {
+    temp = startNode;
+    startNode = startNode->nextNode;
+    free(temp);
+  }
 }
 
 void test(void) {
