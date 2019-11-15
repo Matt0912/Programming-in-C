@@ -4,6 +4,7 @@
 // all possible permutations of the original grid until it is in the form
 // "12345678 " - https://en.wikipedia.org/wiki/Sliding_puzzle */
 
+/* CHANGE PERMUTE FUNCTION TO CHECK CURRENTBOARD INSTEAD OF PARENTBOARD */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +74,7 @@ int main(int argc, char **argv) {
   return FALSE;
 }
 
-/* Difficult to test due to **argv, isValid and isSolvable thoroughly tested */
+/* Difficult to test due to **argv - isValid and isSolvable thoroughly tested */
 int checkInput(int argc, char **argv) {
   char userInput[10];
   if (argc == 2) {
