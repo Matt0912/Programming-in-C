@@ -43,7 +43,7 @@ void freeNodes(Node* endNode);
 
 int main(int argc, char **argv) {
   char board[SIZE][SIZE], userInput[10];
-  Node *currentNode, *startNode;
+  Node *startNode;
 
   test();
 
@@ -56,8 +56,7 @@ int main(int argc, char **argv) {
 
   initialiseBoard(board, userInput);
   startNode = newNode(board, NULL, NULL);
-  currentNode = startNode;
-  permuteBoard(currentNode, startNode);
+  permuteBoard(startNode, startNode);
 
   freeNodes(startNode);
   return FALSE;
@@ -92,7 +91,7 @@ int checkInput(int argc, char **argv) {
 
 /* TESTED */
 int isValid(char userInput[]) {
-  int length = strlen(userInput), i = 0, count[9] = {0}, val;
+  int length = strlen(userInput), i = 0, count[10] = {0}, val;
   char c;
   if (length != SIZE*SIZE) {
     return FALSE;
@@ -110,16 +109,17 @@ int isValid(char userInput[]) {
       return FALSE;
     }
   }
-  for (i=0; i<length; i++) {
+  for (i=0; i<length-1; i++) {
     if (userInput[i] == SPACE) {
       count[0]++;
-    } else {
+    }
+    else {
       c = userInput[i];
-      val = atoi(&c);
+      val = c - '0';
       count[val]++;
     }
   }
-  for (i=0; i<9; i++) {
+  for (i=0; i<length; i++) {
     if (count[i] > 1) {
       return FALSE;
     }
@@ -166,11 +166,12 @@ int isComplete(char board[SIZE][SIZE]) {
   return TRUE;
 }
 
-/* TESTED: Loops through all previous boards in the queue to find duplicates */
-/* NEED TO TEST MORE */
+/* TESTED: Loops through all previous boards to find duplicates */
 int isDuplicate(Node *startNode, char board[SIZE][SIZE]) {
   int x, y, count;
-  while (startNode->nextNode != NULL) {
+  Node* tempNode;
+  do {
+    tempNode = startNode;
     count = 0;
     for (y=0; y<SIZE; y++) {
       for (x=0; x<SIZE; x++) {
@@ -187,7 +188,7 @@ int isDuplicate(Node *startNode, char board[SIZE][SIZE]) {
     if (count == SIZE*SIZE) {
       return TRUE;
     }
-  }
+  } while (tempNode->nextNode != NULL);
 
   return FALSE;
 }
@@ -311,7 +312,7 @@ void copyBoard(char newBoard[SIZE][SIZE], char currentBoard[SIZE][SIZE]) {
 }
 
 /* TESTED: If permuteBoard is trying to access area outside
-// 3x3 array, return FAIL */
+// 3x3 array, return FALSE */
 int access(int x, int y) {
   if (x<0 || x>=SIZE) {
     return FALSE;
@@ -349,7 +350,7 @@ void delay(int seconds) {
     while (clock() < start_time + milli_seconds);
 }
 
-/* TESTED (Tried to print boards after freeing and full of garbage) */
+/* TESTED (Ran valgrind/-fsanitize & tried to print boards after freeing) */
 void freeNodes(Node* startNode) {
   Node* temp;
 
@@ -358,6 +359,7 @@ void freeNodes(Node* startNode) {
     startNode = startNode->nextNode;
     free(temp);
   }
+  free(startNode);
 }
 
 void test(void) {
@@ -365,6 +367,11 @@ void test(void) {
   int x = 0, y = 0;
   char board[SIZE][SIZE], newBoard[SIZE][SIZE];
   Node *testNode, *testNode2;
+  /* UNCOMMENT TO TEST PERMUTEBOARD & TRACEPARENTS */
+  /*
+  Node *testNode3, *testNode4;
+  int moves;
+  */
 
   /* Test isValid */
   assert(isValid(userInput) == TRUE);
@@ -412,18 +419,34 @@ void test(void) {
   /* Test newNode */
   initialiseBoard(board, "1234567 8");
   testNode = newNode(board, NULL, NULL);
-  
+  initialiseBoard(board, "12345678 ");
+  testNode2 = newNode(board, testNode, NULL);
+  assert(testNode->board[0][0] == '1');
+  assert(testNode->board[0][1] == '2');
+  assert(testNode->board[2][1] == SPACE);
+  assert(testNode2->board[0][0] == '1');
+  assert(testNode2->board[2][1] == '8');
+  assert(testNode2->parent == testNode);
+  assert(testNode->parent == NULL);
+  testNode->nextNode = testNode2;
+  assert(testNode->nextNode == testNode2);
+  freeNodes(testNode);
 
+  /* Test isDuplicate */
+  initialiseBoard(board, "12345678 ");
+  testNode = newNode(board, NULL, NULL);
+  initialiseBoard(board, "12345678 ");
+  assert(isDuplicate(testNode, board) == TRUE);
+  initialiseBoard(board, "1234567 8");
+  assert(isDuplicate(testNode, board) == FALSE);
+  testNode2 = newNode(board, testNode, NULL);
+  testNode->nextNode = testNode2;
+  assert(isDuplicate(testNode, board) == TRUE);
+  initialiseBoard(board, "123456 78");
+  assert(isDuplicate(testNode, board) == FALSE);
+  freeNodes(testNode);
 
-   Test isDuplicate *
-  initialiseBoard(board, "87654321 ");
-  assert(isDuplicate(Queue, board) == TRUE);
-  swap(&board[2][2], &board[1][2]);
-  assert(isDuplicate(Queue, board) == FALSE);
-  swap(&board[2][2], &board[1][2]);
-  assert(isDuplicate(Queue, board) == TRUE);
-
-  / Test findSpace */
+  /* Test findSpace */
   initialiseBoard(board, "4312 8657");
   findSpace(board, &x, &y);
   assert(x == 1 && y == 1);
@@ -454,42 +477,46 @@ void test(void) {
   assert(access(1,2) == TRUE);
   assert(access(0,0) == TRUE);
 
-  /* Test permuteBoard *
-  memset(Queue, 0x00, 3*sizeof(Queue[0])); / Reset Queue *
+  /* Test permuteBoard */
+  /* ALL OF THE BELOW WAS COMMENTED OUT AFTER TESTING TO STOP PRINTING
+  / *** TO TEST PERMUTEBOARD AND TRACEPARENTS, UNCOMMENT BELOW CODE ***/
+  /* ALSO UNCOMMENT TESTNODE3, TESTNODE4 & MOVES */
+  /*
   initialiseBoard(board, "1 2345678");
-  assert(permuteBoard(Queue, Queue[0], &currentIndex, Solutions) == FALSE);
-  assert(Queue[1].index == 1);
-  assert(Queue[3].index == 3);
-  /These will fail if order of permutations changes *
-  assert(Queue[0].board[2][2] == Queue[1].board[2][2]);
-  assert(Queue[2].board[2][2] == Queue[3].board[2][2]);
-  assert(Queue[0].board[0][0] == Queue[1].board[0][1]);
-  assert(Queue[1].board[0][1] == Queue[3].board[0][0]);
-  assert(Queue[0].board[0][2] == Queue[2].board[0][1]);
-  assert(Queue[1].board[0][2] == Queue[2].board[0][1]);
-  assert(Queue[0].board[1][1] == Queue[3].board[0][1]);
-  assert(Queue[2].board[1][1] == Queue[3].board[0][1]);
-  assert(permuteBoard(Queue, Queue[1], &currentIndex, Solutions) == FALSE);
-  assert(Queue[4].index == 4);
-
-  initialiseBoard(board, "1 2345678");
-  assert(Queue[4].parent == 1);
-  currentIndex = 0;
-
-  / Test traceParents /
-  / ALL OF THE BELOW WAS COMMENTED OUT AFTER TESTING TO STOP PRINTING *
-  / ******** TO TEST TRACEPARENTS, UNCOMMENT BELOW CODE ***********
-  initialiseBoard(board, "12345678 ", Queue);
-  assert(permuteBoard(Queue, Queue[0], &currentIndex, Solutions) == TRUE);
-
-
-  initialiseBoard(board, "1 2345678", Queue);
-  traceParents(Queue, Solutions, 4);
-  assert(Solutions[2].board[0][0] == Queue[0].board[0][0]);
-  assert(Solutions[1].board[0][0] == Queue[1].board[0][0]);
-  assert(Solutions[0].board[0][0] == Queue[4].board[0][0]);
-  assert(Solutions[0].index == Solutions[1].parent);
-  assert(Solutions[1].index == Solutions[2].parent);
+  testNode = newNode(board, NULL, NULL);
+  assert(permuteBoard(testNode, testNode) == TRUE);
+  testNode2 = testNode->nextNode;
+  testNode3 = testNode2->nextNode;
+  testNode4 = testNode3->nextNode;
   */
+  /*These will fail if order of permutations changes */
+  /*
+  assert(testNode->board[2][2] == testNode2->board[2][2]);
+  assert(testNode3->board[2][2] == testNode4->board[2][2]);
+  assert(testNode->board[0][0] == testNode2->board[0][1]);
+  assert(testNode2->board[0][1] == testNode4->board[0][0]);
+  assert(testNode->board[0][2] == testNode3->board[0][1]);
+  assert(testNode2->board[0][2] == testNode3->board[0][1]);
+  assert(testNode->board[1][1] == testNode4->board[0][1]);
+  assert(testNode3->board[1][1] == testNode4->board[0][1]);
+  */
+  /* This part also tests that freeNodes works:
+  // RUN WITH valgrind ./73 TO CHECK FOR LEAKS */
+  /*freeNodes(testNode);*/
 
+
+  /* Test traceParents - mainly tested visually */
+  /*
+  initialiseBoard(board, "1234567 8");
+  testNode = newNode(board, NULL, NULL);
+  swap(&board[2][1], &board[2][2]);
+  assert(isComplete(board) == TRUE);
+  testNode2 = newNode(board, testNode, NULL);
+  testNode->nextNode = testNode2;
+  moves = 0;
+  traceParents(testNode2, &moves);
+  assert(moves == 1);
+
+  freeNodes(testNode);
+  */
 }

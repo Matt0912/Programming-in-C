@@ -33,7 +33,8 @@ int checkInput(int argc, char **argv);
 int isValid(char userInput[]);
 int isSolvable(char userInput[]);
 int isComplete(char board[SIZE][SIZE]);
-int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]);
+int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE],
+                int currentIndex);
 void initialiseBoard(char board[SIZE][SIZE], char userInput[], Board Queue[QUEUESIZE]);
 void addToQueue(Board Queue[QUEUESIZE], char board[SIZE][SIZE], int index, int parent);
 void findSpace(char board[SIZE][SIZE], int *x, int *y);
@@ -91,6 +92,17 @@ void runSDL(Board* Solutions, int moves) {
   Neill_SDL_Init(&sw);
 
   do {
+
+    /* Reset grid to black */
+    Neill_SDL_SetDrawColour(&sw, 0, 0, 0);
+    for (y = 0; y < SIZE; y++) {
+      for (x = 0; x < SIZE; x++) {
+        rectangle.x = RECTSIZE * x;
+        rectangle.y = RECTSIZE * y;
+        SDL_RenderFillRect(sw.renderer, &rectangle);
+      }
+    }
+
     if (boardNumber > 0) {
      Neill_SDL_SetDrawColour(&sw, 192,192,192);
     }
@@ -98,15 +110,19 @@ void runSDL(Board* Solutions, int moves) {
      Neill_SDL_SetDrawColour(&sw, 50, 205, 50);
     }
 
+    /* Draw white grid */
     for (y = 0; y < SIZE; y++) {
       for (x = 0; x < SIZE; x++) {
-        rectangle.x = RECTSIZE * x;
-        rectangle.y = RECTSIZE * y;
-        SDL_RenderDrawRect(sw.renderer, &rectangle);
+        if (Solutions[boardNumber].board[y][x] != SPACE) {
+          rectangle.x = RECTSIZE * x;
+          rectangle.y = RECTSIZE * y;
+          SDL_RenderDrawRect(sw.renderer, &rectangle);
+        }
       }
     }
 
     /* Use 2 seperate loops otherwise window bugs out */
+    /* Draw board characters */
     for (y = 0; y < SIZE; y++) {
       for (x = 0; x < SIZE; x++) {
         currentChar = Solutions[boardNumber].board[y][x];
@@ -194,7 +210,7 @@ int isValid(char userInput[]) {
       count[0]++;
     } else {
       c = userInput[i];
-      val = atoi(&c);
+      val = c - '0';
       count[val]++;
     }
   }
@@ -208,6 +224,7 @@ int isValid(char userInput[]) {
 
 /* TESTED: Finds number of 'inversions' - if that number is odd, puzzle
 // is impossible, if even, puzzle is solvable */
+/* https://www.geeksforgeeks.org/check-instance-8-puzzle-solvable */
 int isSolvable(char userInput[]) {
   int count = 0, i, j;
   for (i = 0; i < SIZE*SIZE - 1; i++) {
@@ -245,9 +262,10 @@ int isComplete(char board[SIZE][SIZE]) {
 }
 
 /* TESTED: Loops through all previous boards in the queue to find duplicates */
-int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE]) {
+int isDuplicate(Board Queue[QUEUESIZE], char currentBoard[SIZE][SIZE],
+                int currentIndex) {
   int x, y, i = 0, count;
-  while (i < QUEUESIZE) {
+  while (i < currentIndex) {
     count = 0;
     for (y=0; y<SIZE; y++) {
       for (x=0; x<SIZE; x++) {
@@ -325,7 +343,7 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
     /*IF WE CAN SWAP TO THE LEFT OR RIGHT*/
     if (access(spaceX + i, spaceY)) {
       swap(&newBoard[spaceY][spaceX+i], &newBoard[spaceY][spaceX]);
-      if (!isDuplicate(Queue, newBoard)) {
+      if (!isDuplicate(Queue, newBoard, *currentIndex)) {
         (*currentIndex)++;
         addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
       }
@@ -336,7 +354,7 @@ int permuteBoard(Board Queue[QUEUESIZE], Board currentBoard,
     /*IF WE CAN SWAP ABOVE OR BELOW THE SPACE*/
     if (access(spaceX, spaceY + i)) {
       swap(&newBoard[spaceY+i][spaceX], &newBoard[spaceY][spaceX]);
-      if (!isDuplicate(Queue, newBoard)) {
+      if (!isDuplicate(Queue, newBoard, *currentIndex)) {
         (*currentIndex)++;
         addToQueue(Queue, newBoard, *currentIndex, currentBoard.globalIndex);
       }
@@ -470,11 +488,13 @@ void test(void) {
 
   /* Test isDuplicate */
   initialiseBoard(board, "87654321 ", Queue);
-  assert(isDuplicate(Queue, board) == TRUE);
+  currentIndex++;
+  assert(isDuplicate(Queue, board, currentIndex) == TRUE);
   swap(&board[2][2], &board[1][2]);
-  assert(isDuplicate(Queue, board) == FALSE);
+  assert(isDuplicate(Queue, board, currentIndex) == FALSE);
   swap(&board[2][2], &board[1][2]);
-  assert(isDuplicate(Queue, board) == TRUE);
+  assert(isDuplicate(Queue, board, currentIndex) == TRUE);
+  currentIndex=0;
 
   /* Test findSpace */
   initialiseBoard(board, "4312 8657", Queue);
@@ -529,11 +549,12 @@ void test(void) {
 
   /* Test traceParents */
   /* ALL OF THE BELOW WAS COMMENTED OUT AFTER TESTING TO STOP PRINTING */
-  /* ******** TO TEST TRACEPARENTS, UNCOMMENT BELOW CODE ************
+  /*
   initialiseBoard(board, "12345678 ", Queue);
   assert(permuteBoard(Queue, Queue[0], &currentIndex, Solutions) == TRUE);
-
-
+  */
+  /* ******** TO TEST TRACEPARENTS, UNCOMMENT BELOW CODE ************/
+  /*
   initialiseBoard(board, "1 2345678", Queue);
   traceParents(Queue, Solutions, 4);
   assert(Solutions[2].board[0][0] == Queue[0].board[0][0]);
@@ -542,5 +563,4 @@ void test(void) {
   assert(Solutions[0].globalIndex == Solutions[1].parent);
   assert(Solutions[1].globalIndex == Solutions[2].parent);
   */
-
 }
