@@ -4,38 +4,32 @@
 #include <ctype.h>
 #include <string.h>
 
-#define MAXFACTORS 100
-#define MAXINPUT 20
+#define MAXFACTORS 200
+#define MAXINPUT 40
 
 enum bool {FALSE, TRUE};
 
+typedef unsigned long int u32;
+
+
 void test(void);
+u32 checkInput(int argc, char **argv);
 int isValid(char input[MAXINPUT]);
-int isPrime(int num);
-int primeFactors(int input, int factors[MAXFACTORS]);
-void printArray(int factors[MAXFACTORS], int size, int input);
+int isPrime(u32 num);
+int primeFactors(u32 input, u32 factors[MAXFACTORS]);
+void printArray(u32 factors[MAXFACTORS], int size, u32 input);
 
 int main(int argc, char **argv) {
-  int size, factors[MAXFACTORS], userInput;
+  int size;
+  u32 userInput, factors[MAXFACTORS];
   test();
 
-  if (argc == 2) {
-    if (isValid(argv[1])) {
-      userInput = atoi(argv[1]);
-    }
-    else {
-      fprintf(stderr, "ERROR: USER INPUT NOT VALID\n");
-      exit(1);
-    }
-  }
-  else {
-    fprintf(stderr, "INVALID USE - E.G ./primeFactors 210\n");
+  if ((userInput = checkInput(argc, argv)) == FALSE) {
     exit(1);
   }
 
-  size = primeFactors(userInput, factors);
-  if (size == FALSE) {
-    fprintf(stdout, " %d IS PRIME SO HAS NO PRIME FACTORS!\n", userInput);
+  if ((size = primeFactors(userInput, factors)) == FALSE) {
+    fprintf(stdout, " %lu IS PRIME SO HAS NO PRIME FACTORS!\n", userInput);
   }
   else {
     printArray(factors, size, userInput);
@@ -44,7 +38,7 @@ int main(int argc, char **argv) {
 }
 
 void test(void) {
-  int factors[MAXFACTORS];
+  u32 factors[MAXFACTORS];
 
   assert(isValid("123") == TRUE);
   assert(isValid("123345710") == TRUE);
@@ -58,6 +52,7 @@ void test(void) {
   assert(isValid("-9021") == FALSE);
 
   assert(isPrime(53) == 1);
+  assert(isPrime(154321) == 1);
   assert(isPrime(100) == 0);
   assert(isPrime(1) == 0);
   assert(isPrime(-5) == 0);
@@ -76,8 +71,29 @@ void test(void) {
 
 }
 
+u32 checkInput(int argc, char **argv) {
+  u32 userInput;
+  char* pointer;
+  if (argc == 2) {
+    if (isValid(argv[1])) {
+      userInput = strtoul(argv[1], &pointer, 10);
+      return userInput;
+    }
+    else {
+      fprintf(stderr, "ERROR: USER INPUT NOT VALID\n");
+      return FALSE;
+    }
+  }
+  else {
+    fprintf(stderr, "INVALID USE - E.G ./primefactors 210\n");
+    return FALSE;
+  }
+}
+
 int isValid(char input[MAXINPUT]) {
-  int i = 0, num;
+  u32 num;
+  char *pointer;
+  int i = 0;
 
   while (input[i]) {
     if (!isdigit(input[i])) {
@@ -86,7 +102,7 @@ int isValid(char input[MAXINPUT]) {
     i++;
   }
 
-  num = atoi(input);
+  num = strtoul(input, &pointer, 10);
   if (num <= 0) {
     return FALSE;
   }
@@ -94,8 +110,8 @@ int isValid(char input[MAXINPUT]) {
   return TRUE;
 }
 
-int isPrime(int num) {
-  int factor = 2;
+int isPrime(u32 num) {
+  u32 factor = 2;
   if (num < 2) {
     return FALSE;
   }
@@ -110,8 +126,10 @@ int isPrime(int num) {
   return TRUE;
 }
 
-int primeFactors(int input, int factors[MAXFACTORS]) {
-  int factor, i = 0;
+int primeFactors(u32 input,
+                               u32 factors[MAXFACTORS]) {
+  u32 factor;
+  int i = 0;
   if (isPrime(input) || input < 2) {
     factors[0] = input;
     return FALSE;
@@ -133,12 +151,30 @@ int primeFactors(int input, int factors[MAXFACTORS]) {
 
 }
 
-void printArray(int factors[MAXFACTORS], int size, int input) {
-  int i = 0;
-  fprintf(stdout, "USER INPUT: %d\n", input);
+void printArray(u32 factors[MAXFACTORS], int size, u32 input) {
+  int i = 0, j, count;
+  fprintf(stdout, "USER INPUT: %lu\n 1", input);
   while (i < size - 1) {
-    fprintf(stdout, "%d x ", factors[i]);
-    i++;
+    j = i + 1;
+    count = 1;
+    while (j < size) {
+      if (factors[i] == factors[j]) {
+        count++;
+      }
+      j++;
+    }
+    if (count > 1) {
+      fprintf(stdout, " x %lu^%d", factors[i], count);
+    }
+    else {
+      fprintf(stdout, " x %lu", factors[i]);
+    }
+    i += count;
   }
-  fprintf(stdout, "%d = %d\n", factors[i], input);
+  if (i == size - 1) {
+    fprintf(stdout, " %lu = %lu\n", factors[i], input);
+  }
+  else {
+    fprintf(stdout, " = %lu\n", input);
+  }
 }
