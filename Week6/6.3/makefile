@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS=-pedantic -ansi  -Wall -Wextra -Wfloat-equal -O2 -lm
+CFLAGS=-pedantic -ansi  -Wall -Wextra -Wfloat-equal -O2
+LIBS += -lm
 
 all: sierpinski
 sierpinski: sierpinski.o sierpinski.c

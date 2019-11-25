@@ -126,8 +126,7 @@ int isPrime(u32 num) {
   return TRUE;
 }
 
-int primeFactors(u32 input,
-                               u32 factors[MAXFACTORS]) {
+int primeFactors(u32 input, u32 factors[MAXFACTORS]) {
   u32 factor;
   int i = 0;
   if (isPrime(input) || input < 2) {
@@ -171,8 +170,8 @@ void printArray(u32 factors[MAXFACTORS], int size, u32 input) {
     }
     i += count;
   }
-  if (i == size - 1) {
-    fprintf(stdout, " %lu = %lu\n", factors[i], input);
+  if (i == size-1) {
+    fprintf(stdout, " x %lu = %lu\n", factors[i], input);
   }
   else {
     fprintf(stdout, " = %lu\n", input);
