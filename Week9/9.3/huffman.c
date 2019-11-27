@@ -11,7 +11,7 @@ enum bool {FALSE, TRUE};
 typedef struct arrayStruct {
   int freq;
   char c;
-} arrayStruct;
+} ArrayStruct;
 
 typedef struct node {
   char c;
@@ -19,12 +19,19 @@ typedef struct node {
   struct node *left, *right;
 } Node;
 
+typedef struct nodeQueue {
+  int size;
+  int maxCapacity;
+  Node** array;
+} NodeQueue;
+
 void test(void);
-void initHistogram(arrayStruct histogram[ASCIICHARS], char *testString);
+int initHistogram(ArrayStruct histogram[ASCIICHARS], char *testString);
 int compareFunc(const void * a, const void * b);
-Node* arrToList(int histogram[ASCIICHARS]);
+NodeQueue* fillQueue(ArrayStruct histogram[ASCIICHARS], int maxCapacity);
 Node* newNode(char c, int freq);
-void printArray(arrayStruct histogram[ASCIICHARS]);
+NodeQueue* newQueue(int maxCapacity);
+void printArray(ArrayStruct histogram[ASCIICHARS]);
 
 int main(void) {
   test();
@@ -36,10 +43,12 @@ int main(void) {
 
 void test(void) {
   char testString[] = "This is the test string!!'@)";
-  arrayStruct histogram[ASCIICHARS];
+  ArrayStruct histogram[ASCIICHARS];
+  NodeQueue *Queue;
+  int maxCapacity;
 
   /* Tests initHistogram - testString = "This is the test string!!'@)" */
-  initHistogram(histogram, testString);
+  maxCapacity = initHistogram(histogram, testString);
 
   assert(histogram[(int)testString[0]].freq == 1);
   assert(histogram[(int)testString[0]].c == 'T');
@@ -53,13 +62,17 @@ void test(void) {
   assert(histogram[(int)'t'].freq == 4);
   assert(histogram[(int)'T'].freq == 1);
   assert(histogram[(int)'!'].freq == 2);
+  assert(maxCapacity == 14);
 
-  qsort(histogram, ASCIICHARS, sizeof(arrayStruct), compareFunc);
-  printArray(histogram);
+  qsort(histogram, ASCIICHARS, sizeof(ArrayStruct), compareFunc);
+  Queue = fillQueue(histogram, maxCapacity);
+
 }
 
-void initHistogram(arrayStruct histogram[ASCIICHARS], char *testString) {
-  int i;
+/* Create histogram of string made of structs containing letter + frequency
+// and then return the number of non-zero elements (size) of array */
+int initHistogram(ArrayStruct histogram[ASCIICHARS], char *testString) {
+  int i, itemCount = 0;
 
   for (i = 0; i < ASCIICHARS; i++) {
     histogram[i].c = (char)i;
@@ -72,37 +85,41 @@ void initHistogram(arrayStruct histogram[ASCIICHARS], char *testString) {
     (histogram[(int)testString[i]].freq)++;
     i++;
   }
+
+  for (i = 0; i < ASCIICHARS; i++) {
+    if (histogram[i].freq > 0) {
+      itemCount++;
+    }
+  }
+
+  return itemCount;
 }
 
 
 /* Frequency compare function for the quicksort */
 int compareFunc(const void *a, const void *b) {
-  arrayStruct *ia = (arrayStruct *)a;
-  arrayStruct *ib = (arrayStruct *)b;
+  ArrayStruct *ia = (ArrayStruct *)a;
+  ArrayStruct *ib = (ArrayStruct *)b;
   return (ib->freq - ia->freq);
 }
 
-/*
-Node* arrToList(int histogram[ASCIICHARS]) {
-  Node *startNode = NULL, *currNode;
-  int i;
+/* Create new Queue and fill it with nodes directly created from histogram */
+NodeQueue* fillQueue(ArrayStruct histogram[ASCIICHARS], int maxCapacity) {
+  NodeQueue* Queue = newQueue(maxCapacity);
+  int i = 0;
 
-  for (i = 0; i < ASCIICHARS; i++) {
-    if (histogram[i] > 0) {
-      if (startNode == NULL) {
-        startNode = newNode((char)i, histogram[i]);
-        currNode = startNode;
-      }
-      else {
-        currNode->next = newNode((char)i, histogram[i]);
-        currNode = currNode->next;
-      }
-    }
+  while (i < maxCapacity) {
+    Queue->array[i] = newNode(histogram[i].c, histogram[i].freq);
+    printf("%c = %d\n", Queue->array[i]->c, Queue->array[i]->freq);
+    i++;
   }
 
-  return startNode;
-}*/
+  Queue->size = maxCapacity;
 
+  return Queue;
+}
+
+/* Malloc and initialise new node for tree */
 Node* newNode(char c, int freq) {
   Node* newNode = (Node* )malloc(sizeof(Node));
   newNode->c = c;
@@ -113,7 +130,19 @@ Node* newNode(char c, int freq) {
   return newNode;
 }
 
-void printArray(arrayStruct histogram[ASCIICHARS]) {
+/* Malloc and create queue for storing new nodes */
+NodeQueue* newQueue(int maxCapacity) {
+  NodeQueue* Queue = (NodeQueue* )malloc(sizeof(NodeQueue));
+  Queue->size = 0;
+  Queue->maxCapacity = maxCapacity;
+  Queue->array = (Node**)malloc(maxCapacity * sizeof(Node));
+
+  return Queue;
+}
+
+
+/*
+void printArray(ArrayStruct histogram[ASCIICHARS]) {
   int i;
   for (i = 0; i < ASCIICHARS; i++) {
     if (histogram[i].freq > 0) {
@@ -121,3 +150,4 @@ void printArray(arrayStruct histogram[ASCIICHARS]) {
     }
   }
 }
+*/
