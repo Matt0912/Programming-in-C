@@ -28,10 +28,11 @@ typedef struct nodeQueue {
 void test(void);
 int initHistogram(ArrayStruct histogram[ASCIICHARS], char *testString);
 int compareFunc(const void * a, const void * b);
-NodeQueue* fillQueue(ArrayStruct histogram[ASCIICHARS], int maxCapacity);
+int compareFunc2(const void *a, const void *b);
+NodeQueue* fillQueue(char *String);
 Node *buildTree(NodeQueue *Queue);
 Node* newNode(char c, int freq);
-NodeQueue* newQueue(int maxCapacity);
+NodeQueue* newQueue();
 void printQueue(NodeQueue* Queue);
 void printArray(ArrayStruct histogram[ASCIICHARS]);
 
@@ -45,13 +46,15 @@ int main(void) {
 
 void test(void) {
   char testString[] = "This is the test string!!'@)";
-  ArrayStruct histogram[ASCIICHARS];
   NodeQueue *Queue;
-  Node *treeRoot;
+  Node *treeRoot, *testNode1, *testNode2;
   int maxCapacity;
-  void *testpoint1, *testpoint2;
+  /*void *testpoint1, *testpoint2; */
 
-  /* Tests initHistogram - testString = "This is the test string!!'@)" */
+  Queue = fillQueue(testString);
+  printQueue(Queue);
+
+  /* Tests initHistogram - testString = "This is the test string!!'@)"
   maxCapacity = initHistogram(histogram, testString);
 
   assert(histogram[(int)testString[0]].freq == 1);
@@ -66,9 +69,9 @@ void test(void) {
   assert(histogram[(int)'t'].freq == 4);
   assert(histogram[(int)'T'].freq == 1);
   assert(histogram[(int)'!'].freq == 2);
-  assert(maxCapacity == 14);
+  assert(maxCapacity == 14); */
 
-  /* Tests compareFunc */
+  /* Tests compareFunc
   testpoint1 = &histogram[(int)testString[0]];
   testpoint2 = &histogram[(int)testString[2]];
   assert(compareFunc(testpoint1, testpoint2) == 2);
@@ -78,7 +81,13 @@ void test(void) {
 
   qsort(histogram, ASCIICHARS, sizeof(ArrayStruct), compareFunc);
   Queue = fillQueue(histogram, maxCapacity);
-  printQueue(Queue);
+  printQueue(Queue); */
+
+  /* Tests compareFunc */
+  testNode1 = newNode('h', 3);
+  testNode2 = newNode('k', 5);
+  assert(compareFunc2(testNode1,testNode2) == 2);
+
 
   /* Test fillQueue */
   assert(Queue->array[0]->freq == 4);
@@ -86,45 +95,11 @@ void test(void) {
   assert(Queue->array[1]->c == 's');
   assert(Queue->array[10]->freq == 1);
   assert(Queue->size == maxCapacity);
-  assert(Queue->maxCapacity == maxCapacity);
+  assert(Queue->maxCapacity == ASCIICHARS);
 
   treeRoot = buildTree(Queue);
   printQueue(Queue);
 
-}
-
-/* Create histogram of string made of structs containing letter + frequency
-// and then return the number of non-zero elements (size) of array */
-int initHistogram(ArrayStruct histogram[ASCIICHARS], char *testString) {
-  int i, itemCount = 0;
-
-  for (i = 0; i < ASCIICHARS; i++) {
-    histogram[i].c = (char)i;
-    histogram[i].freq = 0;
-  }
-
-  i = 0;
-  while (testString[i]) {
-    histogram[(int)testString[i]].c = testString[i];
-    (histogram[(int)testString[i]].freq)++;
-    i++;
-  }
-
-  for (i = 0; i < ASCIICHARS; i++) {
-    if (histogram[i].freq > 0) {
-      itemCount++;
-    }
-  }
-
-  return itemCount;
-}
-
-
-/* Frequency compare function for the quicksort */
-int compareFunc(const void *a, const void *b) {
-  ArrayStruct *ia = (ArrayStruct *)a;
-  ArrayStruct *ib = (ArrayStruct *)b;
-  return (ib->freq - ia->freq);
 }
 
 int compareFunc2(const void *a, const void *b) {
@@ -134,16 +109,23 @@ int compareFunc2(const void *a, const void *b) {
 }
 
 /* Create new Queue and fill it with nodes directly created from histogram */
-NodeQueue* fillQueue(ArrayStruct histogram[ASCIICHARS], int maxCapacity) {
-  NodeQueue* Queue = newQueue(maxCapacity);
-  int i = 0;
+NodeQueue* fillQueue(char *String) {
+  NodeQueue* Queue = newQueue();
+  int i = 0, size = 0;
 
-  while (i < maxCapacity) {
-    Queue->array[i] = newNode(histogram[i].c, histogram[i].freq);
+  while (String[i]) {
+    (Queue->array[(int)String[i]]->freq)++;
     i++;
   }
 
-  Queue->size = maxCapacity;
+  for (i = 0; i < ASCIICHARS; i++) {
+    if (Queue->array[i]->freq > 0) {
+      size++;
+    }
+  }
+
+  qsort(Queue->array, ASCIICHARS-1, sizeof(Node), compareFunc2);
+  Queue->size = size;
 
   return Queue;
 }
@@ -178,19 +160,26 @@ Node* newNode(char c, int freq) {
   return newNode;
 }
 
-/* Malloc and create queue for storing new nodes */
-NodeQueue* newQueue(int maxCapacity) {
+/* Malloc and create queue for storing new nodes - initialise each node
+// with char and freq = 0 */
+NodeQueue* newQueue() {
   NodeQueue* Queue = (NodeQueue* )malloc(sizeof(NodeQueue));
+  int i = 0;
   Queue->size = 0;
-  Queue->maxCapacity = maxCapacity;
-  Queue->array = (Node**)malloc(maxCapacity * sizeof(Node));
+  Queue->maxCapacity = ASCIICHARS;
+  Queue->array = (Node**)malloc(ASCIICHARS * sizeof(Node));
+
+  while (i < ASCIICHARS) {
+    Queue->array[i] = newNode((char)i, 0);
+    i++;
+  }
 
   return Queue;
 }
 
 void printQueue(NodeQueue* Queue) {
   int i = 0;
-  while (i < Queue->size) {
+  while (i < Queue->maxCapacity) {
     fprintf(stdout, "%c = %d\n", Queue->array[i]->c, Queue->array[i]->freq);
     i++;
   }
