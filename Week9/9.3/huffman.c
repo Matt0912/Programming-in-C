@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define ASCIICHARS 255
+#define MAXCODE 40
 #define STRSIZE 5000
 
 enum bool {FALSE, TRUE};
@@ -15,7 +16,7 @@ typedef struct arrayStruct {
 } ArrayStruct;
 
 typedef struct node {
-  char c;
+  char c, huffmanCode[MAXCODE];
   int freq;
   struct node *left, *right;
 } Node;
@@ -36,7 +37,10 @@ Node* newNode(char c, int freq);
 NodeQueue* newQueue(int maxCapacity);
 void printQueue(NodeQueue* Queue);
 void printArray(ArrayStruct histogram[ASCIICHARS]);
-char *PrintTree(Node *t);
+void calculateHuffmanCode(Node *head, int *sum);
+void printHuffman(Node* current, int *sum);
+void freeTreeNodes(Node* head);
+void freeNodeQueue(NodeQueue* head);
 
 int main(void) {
   test();
@@ -52,12 +56,12 @@ void test(void) {
   int length = strlen(testString);
   NodeQueue *Queue;
   Node *treeRoot;
-  int maxCapacity;
+  int maxCapacity, sum = 0;
   void *testpoint1, *testpoint2;
 
-  /* Tests initHistogram - testString = "This is the test string!!'@)" */
   maxCapacity = initHistogram(histogram, testString);
 
+  /* Tests initHistogram - testString = "This is the test string!!'@)" */
   assert(histogram[(int)testString[0]].freq == 1);
   assert(histogram[(int)testString[0]].c == 'T');
   assert(histogram[(int)testString[2]].freq == 3);
@@ -93,8 +97,14 @@ void test(void) {
 
   treeRoot = buildTree(Queue);
   assert(treeRoot->freq == length);
-  printf("%s\n", PrintTree(treeRoot));
 
+  calculateHuffmanCode(treeRoot, &sum);
+  fprintf(stdout,"Total compression size: %d bytes\n", sum/8);
+  fprintf(stdout,"Size before compression: %d bytes\n", length);
+
+
+  freeTreeNodes(treeRoot);
+  freeNodeQueue(Queue);
 }
 
 /* Create SORTED histogram of input string, made of structs containing letter +
@@ -205,12 +215,58 @@ NodeQueue* newQueue(int maxCapacity) {
   return Queue;
 }
 
-char *PrintTree(Node *t)
-{
+void calculateHuffmanCode(Node *head, int *sum) {
+  char left = '0', right = '1';
+
+  if (head->c) {
+    printHuffman(head, sum);
+  }
+  if (head->left != NULL) {
+    strcpy(head->left->huffmanCode, head->huffmanCode);
+    strncat(head->left->huffmanCode, &left, 1);
+    calculateHuffmanCode(head->left, sum);
+  }
+  if (head->right != NULL) {
+    strcpy(head->right->huffmanCode, head->huffmanCode);
+    strncat(head->right->huffmanCode, &right, 1);
+    calculateHuffmanCode(head->right, sum);
+  }
+}
+
+void printHuffman(Node* current, int *sum) {
+  int length;
+  length = strlen(current->huffmanCode);
+  fprintf(stdout, "'%c' : %s : (%d * %d)\n", current->c, current->huffmanCode,
+          length, current->freq);
+  *sum += length * current->freq;
+}
+
+void freeTreeNodes(Node* head) {
+  if (head->left == NULL && head->right == NULL) {
+    free(head);
+  }
+  if (head->left != NULL) {
+    freeTreeNodes(head->left);
+  }
+  if (head->right != NULL) {
+    freeTreeNodes(head->right);
+  }
+}
+
+void freeNodeQueue(NodeQueue* Queue) {
+  int i = Queue->maxCapacity;
+  while (i > 0) {
+    free(Queue->array[i]);
+    i--;
+  }
+  free(Queue);
+}
+
+/*char *PrintTree(Node *t) {
   char *str, *letter;
-  /* Assign strsize amount of memory, check isn't null */
+   Assign strsize amount of memory, check isn't null
   assert((str = calloc(STRSIZE, sizeof(char))) != NULL);
-  /* Assign letter memory on heap so that it isn't lost after function calls */
+   Assign letter memory on heap so that it isn't lost after function calls
   letter = (char *)malloc(2*sizeof(char));
 
   if(t->left == NULL && t->right == NULL){
@@ -218,10 +274,11 @@ char *PrintTree(Node *t)
     letter[1] = '\0';
     return letter;
   }
-  sprintf(str, "%d (%s:%d) (%s:%d)", t->freq, PrintTree(t->left),
-          t->left->freq, PrintTree(t->right), t->right->freq);
+  sprintf(str, "(%s:%s:%d) (%s:%s:%d)", PrintTree(t->left),
+          t->left->huffmanCode, t->left->freq, PrintTree(t->right),
+          t->right->huffmanCode, t->right->freq);
   return str;
-}
+}*/
 
 /*
 void printQueue(NodeQueue* Queue) {
