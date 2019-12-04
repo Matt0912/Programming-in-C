@@ -4,6 +4,8 @@
 #include <time.h>
 #include <string.h>
 
+#define FILEWIDTH 100
+#define MAXCHARACTERS 5000000
 #define ASCIICHARS 255
 #define MAXCODE 40
 #define STRSIZE 5000
@@ -28,6 +30,7 @@ typedef struct nodeQueue {
 } NodeQueue;
 
 void test(void);
+int readFile(char *String, FILE *fp);
 int initHistogram(ArrayStruct histogram[ASCIICHARS], char *testString);
 int compareFunc(const void * a, const void * b);
 NodeQueue* fillQueue(ArrayStruct histogram[ASCIICHARS], int maxCapacity);
@@ -42,11 +45,42 @@ void printHuffman(Node* current, int *sum);
 void freeTreeNodes(Node* head);
 void freeNodeQueue(NodeQueue* head);
 
-int main(void) {
+int main(int argc, char **argv) {
+  static char String[MAXCHARACTERS];
+  FILE *fp;
+  ArrayStruct histogram[ASCIICHARS];
+  NodeQueue *Queue;
+  int maxCapacity, sum = 0, length;
+  Node *treeRoot;
   test();
 
+  if(argc!=2) {
+    argv[1] = "test.txt";
+    fprintf(stderr,"ERROR: Incorrect usage, defaulted to textfile1.txt\n");
+  }
 
+  fp = fopen(argv[1], "r");
 
+  if (fp == NULL) {
+    fprintf(stderr, "ERROR - Unable to open file %s\n", argv[1]);
+    exit(1);
+  }
+
+  length = readFile(String, fp);
+  maxCapacity = initHistogram(histogram, String);
+
+  qsort(histogram, ASCIICHARS, sizeof(ArrayStruct), compareFunc);
+  Queue = fillQueue(histogram, maxCapacity);
+
+  treeRoot = buildTree(Queue);
+  calculateHuffmanCode(treeRoot, &sum);
+
+  fprintf(stdout,"Total compression size: %d bytes\n", sum/8);
+  fprintf(stdout,"Size before compression: %d bytes\n", length);
+
+  fclose(fp);
+  freeTreeNodes(treeRoot);
+  freeNodeQueue(Queue);
   return FALSE;
 }
 
@@ -56,7 +90,8 @@ void test(void) {
   int length = strlen(testString);
   NodeQueue *Queue;
   Node *treeRoot;
-  int maxCapacity, sum = 0;
+  int maxCapacity;
+  /* int sum = 0 */
   void *testpoint1, *testpoint2;
 
   maxCapacity = initHistogram(histogram, testString);
@@ -98,14 +133,27 @@ void test(void) {
   treeRoot = buildTree(Queue);
   assert(treeRoot->freq == length);
 
-  calculateHuffmanCode(treeRoot, &sum);
-  fprintf(stdout,"Total compression size: %d bytes\n", sum/8);
-  fprintf(stdout,"Size before compression: %d bytes\n", length);
+  /*calculateHuffmanCode(treeRoot, &sum);*/
 
 
   freeTreeNodes(treeRoot);
   freeNodeQueue(Queue);
 }
+
+
+int readFile(char *String, FILE *fp) {
+  char str[FILEWIDTH];
+  int i = 0, length;
+
+  while (fgets(str, FILEWIDTH, fp) != NULL) {
+    strcat(String, str);
+    length = strlen(str);
+    i += length;
+  }
+
+  return i;
+}
+
 
 /* Create SORTED histogram of input string, made of structs containing letter +
 // frequency and then return the number of non-zero elements (size) of array */
