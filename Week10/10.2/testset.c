@@ -10,7 +10,6 @@ int main(void)
    set *sa, *sb, *sc, *su, *si;
    arrtype aa[] = {5,1,7,5};
    arrtype ab[] = {4,2,6,7};
-
    printf("Basic Set Tests ... Start\n");
 
    /* Check basic set NULL (empty) operations are dealt with correctly */
@@ -59,7 +58,7 @@ int main(void)
       assert(set_size(sa)==3-i);
    }
    set_free(&sa);
-   
+
    /* Basic Set creation */
    sa = set_fromarray(aa,4);
    assert(set_size(sa)==3);
