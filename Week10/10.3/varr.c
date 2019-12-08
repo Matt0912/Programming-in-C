@@ -27,7 +27,7 @@ arr* arr_init(int elementsize) {
 
 /* No array *written* out-of-bounds, resize */
 void arr_set(arr *l, int n, void* v) {
-   void *ptr;
+   char* ptr = (char *)l->data;
    if (n < 0){
       ON_ERROR("Array accessed with negative index ...\n");
    }
@@ -40,8 +40,12 @@ void arr_set(arr *l, int n, void* v) {
       }
       l->pz = n+1;
    }
-   ptr = &l->data + ((n+1)*l->elsz);
-   ptr = v;
+
+   ptr = ptr + ((n)*l->elsz);
+   *ptr = *v;
+
+
+
 }
 
 
