@@ -1,18 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
+#define NDEBUG
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
 #include "mvm.h"
 
-#define MAXSTRSIZE 100
+#define MAXSTRSIZE 200
 #define MAXOUTPUTSTR 1000
 #define FILENAME "cmudict.txt"
 
 enum bool {FALSE, TRUE};
 
+/* Write tests for checkinput, capitaliseString, printRhymes */
+/* Test more edge cases */
 int checkInput(int argc, char **argv, int *numPhonemes, int *i);
-/* check n > 0 , make all uppercase*/
 void readFile(mvm* map1, mvm* map2, int numPhonemes);
 int hashIndex(char* string);
 int returnPhonemes(char* string, int numPhonemes, char* phonemes);
@@ -23,9 +25,8 @@ void test(void);
 
 int main(int argc, char **argv) {
   mvm *map1, *map2;
-  char** rhymes, *phonemes;
+  char** rhymes, *phonemes, *output;
   int numPhonemes = 0, count, i;
-
   test();
 
   if (checkInput(argc, argv, &numPhonemes, &i) == FALSE) {
@@ -39,18 +40,26 @@ int main(int argc, char **argv) {
 
   while (i < argc) {
     count = 0;
-    phonemes = mvm_search(map1, argv[i]);
+    if ((phonemes = mvm_search(map1, argv[i])) == NULL) {
+        fprintf(stderr, "\n%s not found - please try again\n", argv[i]);
+        exit(1);
+    }
     rhymes = mvm_multisearch(map2, phonemes, &count);
-    fprintf(stdout, "%s - (%s): RHYMES = %d\n %s\n", argv[i], phonemes,
-            count, printRhymes(rhymes, count));
+    output = printRhymes(rhymes, count);
+    fprintf(stdout, "\n%s (%s): RHYMES = %d\n%s\n", argv[i], phonemes,
+            count, output);
     i++;
   }
 
-  free(map1);
-  free(map2);
+  free(rhymes);
+  free(output);
+  mvm_free(&map1);
+  mvm_free(&map2);
   return FALSE;
 }
 
+/* Check input is valid and in correct format
+// Also handle 2 cases where -n is specified or not */
 int checkInput(int argc, char **argv, int *numPhonemes, int *i) {
   int x, j;
   if (argc == 1) {
@@ -82,11 +91,23 @@ int checkInput(int argc, char **argv, int *numPhonemes, int *i) {
 void test(void) {
   char testStr1[] = "STANO#S T AA1 N OW0";
   char testStr2[] = "FURGERSON#F ER1 G ER0 S AH0 N";
+  /*
   char testStr3[] = "STEELED#S T IY1 L D";
   char testStr4[] = "STEELEDS T IY1 L D";
-  char phonemes[MAXSTRSIZE];
+  char phonemes[MAXSTRSIZE];*/
+  char testStr5[] = "testing";
+  char testStr6[] = "stano#s t aa1 n ow0";
 
   mvm* testmap;
+
+  /* Test capitaliseString */
+  capitaliseString(testStr1);
+  assert(strcmp(testStr1, "STANO#S T AA1 N OW0") == 0);
+  capitaliseString(testStr5);
+  assert(strcmp(testStr5, "TESTING") == 0);
+  capitaliseString(testStr6);
+  assert(strcmp(testStr6, "STANO#S T AA1 N OW0") == 0);
+
 
   /* Test strrev */
   strrev(testStr1);
@@ -125,6 +146,7 @@ void test(void) {
 
   testmap = mvm_init();
 
+  mvm_free(&testmap);
 
 }
 
@@ -136,7 +158,7 @@ void readFile(mvm* map1, mvm* map2, int numPhonemes) {
   fp = fopen(FILENAME, "r");
 
   if (fp == NULL) {
-    fprintf(stderr, "ERROR - Unable to open file\n");
+    fprintf(stderr, "ERROR - Unable to open dictionary file\n");
     exit(1);
   }
 
@@ -152,6 +174,7 @@ void readFile(mvm* map1, mvm* map2, int numPhonemes) {
   fclose(fp);
 }
 
+/* Returns string from list of pointers to words that rhyme with input */
 char *printRhymes(char **rhymes, int count) {
   char *output = (char *)calloc(1, MAXOUTPUTSTR*sizeof(char));
   int i = 0, j = 1;
@@ -180,36 +203,40 @@ int hashIndex(char* string) {
   return FALSE;
 }
 
-/* Stores the last n phonemes in string phonemes, returns TRUE if
-// successful, returns FALSE if too many phonemes requested */
-
-/* Could rerun with default of 3 / max number possible? */
+/* Stores the last n phonemes in string 'phonemes', returns TRUE if
+// successful, returns FALSE if too many phonemes requested (but still
+// returns the max number of phonemes for that word) */
 int returnPhonemes(char* string, int numPhonemes, char phonemes[]) {
-  int i = strlen(string)-1, j = 0;
+  int i = strlen(string)-1, j = 0, count = 0;
   int hash = hashIndex(string);
 
   while (i >= hash) {
+    /* Removes \n and random chars from string */
     while (!isprint(string[i])) {
       i--;
     }
     if (string[i] == ' ' || string[i] == '#') {
-      numPhonemes--;
+      count++;
     }
-    if (numPhonemes == 0) {
+    if (count == numPhonemes) {
       phonemes[j] = '\0';
       strrev(phonemes);
       return TRUE;
+    }
+    /* If '#' is reached but haven't got enough phonemes, return FALSE
+    // - still store reversed string */
+    if (string[i] == '#') {
+      if (count < numPhonemes) {
+        phonemes[j] = '\0';
+        strrev(phonemes);
+        return FALSE;
+      }
     }
     phonemes[j] = string[i];
     i--;
     j++;
   }
-  if (numPhonemes > 0) {
-    return FALSE;
-  }
-  else {
-    return TRUE;
-  }
+  return FALSE;
 }
 
 /* String.h should include a string reverse function but isn't available
