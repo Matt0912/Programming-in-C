@@ -11,6 +11,9 @@
 
 enum bool {FALSE, TRUE};
 
+/* Add check malloc function */
+/* Add free function to group free statements */
+
 mvm* mvm_init(void) {
   mvm* list;
   list = (mvm *)calloc(1, sizeof(mvm));
