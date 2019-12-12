@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define NDEBUG
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
@@ -12,8 +11,7 @@
 
 enum bool {FALSE, TRUE};
 
-/* Write tests for checkinput, capitaliseString, printRhymes */
-/* Test more edge cases */
+/* Test more edge cases, test printRhymes more */
 int checkInput(int argc, char **argv, int *numPhonemes, int *i);
 void readFile(mvm* map1, mvm* map2, int numPhonemes);
 int hashIndex(char* string);
@@ -65,6 +63,7 @@ int checkInput(int argc, char **argv, int *numPhonemes, int *i) {
   if (argc == 1) {
     return FALSE;
   }
+
   /* If no -n flag given, default to 3 phonemes */
   if (strcmp(argv[1], "-n") != 0) {
     fprintf(stderr, "-n NOT SPECIFIED - DEFAULTED TO 3 PHONEMES\n");
@@ -80,6 +79,7 @@ int checkInput(int argc, char **argv, int *numPhonemes, int *i) {
     *numPhonemes = x;
     *i = 3;
   }
+
   j = *i;
   while (j < argc) {
     capitaliseString(argv[j]);
@@ -89,14 +89,16 @@ int checkInput(int argc, char **argv, int *numPhonemes, int *i) {
 }
 
 void test(void) {
-  char testStr1[] = "STANO#S T AA1 N OW0";
-  char testStr2[] = "FURGERSON#F ER1 G ER0 S AH0 N";
-  /*
-  char testStr3[] = "STEELED#S T IY1 L D";
-  char testStr4[] = "STEELEDS T IY1 L D";
-  char phonemes[MAXSTRSIZE];*/
-  char testStr5[] = "testing";
-  char testStr6[] = "stano#s t aa1 n ow0";
+  char testStr1[MAXSTRSIZE] = "STANO#S T AA1 N OW0";
+  char testStr2[MAXSTRSIZE] = "FURGERSON#F ER1 G ER0 S AH0 N";
+  char testStr3[MAXSTRSIZE] = "STEELED#S T IY1 L D";
+  char testStr4[MAXSTRSIZE] = "STEELEDS T IY1 L D";
+  char phonemes[MAXSTRSIZE];
+  char testStr5[MAXSTRSIZE] = "testing";
+  char testStr6[MAXSTRSIZE] = "stano#s t aa1 n ow0";
+  int testargc = 5, numPhonemes, i, matches = 0;
+  char **testargv = (char **)calloc(1, 10*sizeof(char*));
+  char **rhymes, *output;
 
   mvm* testmap;
 
@@ -108,6 +110,37 @@ void test(void) {
   capitaliseString(testStr6);
   assert(strcmp(testStr6, "STANO#S T AA1 N OW0") == 0);
 
+  /* Test checkInput */
+  i = 0;
+  while (i < testargc) {
+       testargv[i] = (char*)malloc(MAXSTRSIZE*sizeof(char));
+       i++;
+  }
+  /* If -n flag specified */
+  sprintf(testargv[0], "./homophones");
+  sprintf(testargv[1], "-n");
+  sprintf(testargv[2], "2");
+  sprintf(testargv[3], "TEST");
+  sprintf(testargv[4], "hello");
+  assert(checkInput(testargc, testargv, &numPhonemes, &i) == TRUE);
+  assert(numPhonemes == 2);
+  assert(i == 3);
+  assert(strcmp(testargv[3], "TEST") == 0);
+  assert(strcmp(testargv[4], "HELLO") == 0);
+  /* If no -n flag **COMMENTED OUT TO PREVENT PRINTING ERRORS **
+  sprintf(testargv[1], "boy");
+  sprintf(testargv[2], "BOY");
+  sprintf(testargv[3], "TEST");
+  sprintf(testargv[4], "hello");
+  assert(checkInput(testargc, testargv, &numPhonemes, &i) == TRUE);
+  assert(numPhonemes == 3);
+  assert(i == 1);
+  assert(strcmp(testargv[1], "BOY") == 0);
+  assert(strcmp(testargv[2], "BOY") == 0); */
+  /* Negative n */
+  sprintf(testargv[1], "-n");
+  sprintf(testargv[2], "-1");
+  assert(checkInput(testargc, testargv, &numPhonemes, &i) == FALSE);
 
   /* Test strrev */
   strrev(testStr1);
@@ -118,6 +151,12 @@ void test(void) {
   assert(strcmp(testStr2, "N 0HA S 0RE G 1RE F#NOSREGRUF") == 0);
   strrev(testStr2);
   assert(strcmp(testStr2, "FURGERSON#F ER1 G ER0 S AH0 N") == 0);
+  sprintf(testStr5, "123 456 789");
+  sprintf(testStr6, "123 456 789");
+  strrev(testStr5);
+  assert(strcmp(testStr5, "987 654 321") == 0);
+  strrev(testStr5);
+  assert(strcmp(testStr5, testStr6) == 0);
 
   /* Test hashIndex */
   assert(hashIndex(testStr1) == 5);
@@ -144,10 +183,31 @@ void test(void) {
   assert(returnPhonemes(testStr3, 3, phonemes) == TRUE);
   assert(strcmp(phonemes, "IY1 L D") == 0);
 
+  /* Test printRhymes + further tests of multisearch */
   testmap = mvm_init();
+  returnPhonemes("BOY#B OY1", 2, phonemes);
+  mvm_insert(testmap, phonemes, "BOY");
+  mvm_insert(testmap, "B OY1", "BOY");
+  mvm_insert(testmap, "B OY1", "DEBOY");
+  rhymes = mvm_multisearch(testmap, phonemes, &matches);
+  assert(matches == 3);
+  assert(strcmp(rhymes[0],"DEBOY") == 0);
+  assert(strcmp(rhymes[1],"BOY") == 0);
+  assert(strcmp(rhymes[2],"BOY") == 0);
+  output = printRhymes(rhymes, matches);
+  assert(strcmp(output, "DEBOY BOY BOY ") == 0);
 
+
+  /* Free variables allocated during testing */
   mvm_free(&testmap);
-
+  i = 0;
+  while (i < testargc) {
+       free(testargv[i]);
+       i++;
+   }
+  free(testargv);
+  free(rhymes);
+  free(output);
 }
 
 void readFile(mvm* map1, mvm* map2, int numPhonemes) {
