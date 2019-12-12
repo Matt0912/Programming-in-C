@@ -11,15 +11,17 @@
 #define ON_ERROR(STR) fprintf(stderr, STR); exit(EXIT_FAILURE)
 
 struct mvmcell {
+   unsigned long hash;
    char* key;
    char* data;
-   struct mvmcell* next;
+   struct mvmcell* link;
 };
 typedef struct mvmcell mvmcell;
 
 struct mvm {
-   mvmcell* head;
+   mvmcell** hashTable;
    int numkeys;
+   size_t capacity;
 };
 typedef struct mvm mvm;
 
