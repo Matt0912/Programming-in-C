@@ -1,17 +1,21 @@
-/* Multi-Value Map ADT : via Linked List
-   Both key & data are strings (char*)
-   Multiple Keys may be stored
-   New data is inserted at the front of the list:
-   O(1) insertion
-   O(n) search
-   O(n) deletion
-*/
+/* Attempted to make homophones searching faster through the use of hash tables
+// Used each key to generate an index in the hash table (using the hash function
+// djb2), and dealt with any collisions by implementing a linked list for any
+// keys with the same index.
 
-/* Reallocating memory but creating new hash tables and re-pointing to new tables
-// Using linked lists to deal with key collisions, then when finding rhymes
-// I'm only printing the ones which match the search key */
-/* Very slow once switching to fmvm.c, most likely the hashing algorithm - realised
-// djb2 is very slow */
+// I re-allocated memory for the hash table as more values were input, which
+// resulted in making a function to generate a new hash table, populate it with
+// the existing values using their new hashes, and freeing the old table
+
+// Because each index could have keys which were not identical, when printing
+// values I had to use a strcmp function so that only relevant values were printed
+
+// In reality, fmvm.c is slower than mvm.c, but this is due to constant re-allocation
+// of memory, and I also believe that djb2 is a slow hashing function as it ran
+// faster before implementing it
+
+// If I had more time, I'd investigate double hashing so that each linked list only
+// contains values with identical keys */
 
 /* Error that can't be ignored */
 #define ON_ERROR(STR) fprintf(stderr, STR); exit(EXIT_FAILURE)
@@ -45,5 +49,3 @@ char* mvm_search(mvm* m, char* key);
 char** mvm_multisearch(mvm* m, char* key, int* n);
 /* Free & set p to NULL */
 void mvm_free(mvm** p);
-
-void test(void);

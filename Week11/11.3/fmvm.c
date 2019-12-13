@@ -12,8 +12,6 @@
 
 enum bool {FALSE, TRUE};
 
-/* Write comments at top of fmvm.h*/
-
 unsigned long generateHash(char* key);
 void resizeTable(mvm* m);
 int isPrime(int num);
@@ -192,6 +190,8 @@ unsigned long generateHash(char* key) {
   return hash;
 }
 
+/* Resizes hashtable by reallocating 5x current size to a new table,
+// then redirecting m->hashTable to the new table and freeing old table */
 void resizeTable(mvm* m) {
   mvmcell** newHashTable;
   int i = 0, newIndex, newCapacity;
@@ -208,7 +208,16 @@ void resizeTable(mvm* m) {
     ptr = m->hashTable[i];
     if (ptr != NULL) {
       newIndex = generateHash(ptr->key)%newCapacity;
-      newHashTable[newIndex] = ptr;
+      if (newHashTable[newIndex] != NULL) {
+        ptr2 = newHashTable[newIndex];
+        while (ptr2->link != NULL) {
+          ptr2 = ptr2->link;
+        }
+        ptr2->link = ptr;
+      }
+      else {
+        newHashTable[newIndex] = ptr;
+      }
       while (ptr->link != NULL) {
         prevPtr = ptr;
         ptr = ptr->link;

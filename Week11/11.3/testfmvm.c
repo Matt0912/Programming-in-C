@@ -125,7 +125,6 @@ int main(void) {
   free(str);
 
   /* Freeing */
-  printf("test\n");
   mvm_free(&m);
   assert(m==NULL);
   assert(mvm_size(m)==0);
@@ -142,20 +141,21 @@ int main(void) {
 void test(void) {
   mvm* m;
   int j;
-  char *string;
   char animals[10][10] = {"cat",  "dog",  "bird",  "horse", "frog",
                          "cow", "cat", "mouse", "pig", "frog"};
   char noises[10][10] = {"meow", "bark", "tweet", "neigh", "croak",
                          "moo", "purr", "squeak", "oink", "ribbit"};
   m = mvm_init();
-  m->capacity = 2;
-  for(j=0; j<10; j++){
-     mvm_insert(m, animals[j], noises[j]);
-     assert(mvm_size(m)==j+1);
-  }
-  string = mvm_print(m);
-  printf("%s\n", string);
-  free(string);
-  mvm_free(&m);
 
+  /* Test table resize */
+  m->capacity = 2;
+  mvm_insert(m, animals[0], noises[0]);
+  mvm_insert(m, animals[1], noises[1]);
+
+  for(j=2; j<10; j++){
+    mvm_insert(m, animals[j], noises[j]);
+    assert(mvm_size(m)==j+1);
+  }
+
+  mvm_free(&m);
 }
