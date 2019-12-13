@@ -21,7 +21,7 @@ typedef struct mvmcell mvmcell;
 struct mvm {
    mvmcell** hashTable;
    int numkeys;
-   size_t capacity;
+   int capacity;
 };
 typedef struct mvm mvm;
 

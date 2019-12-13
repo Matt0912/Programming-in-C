@@ -7,8 +7,12 @@
 
 #define DEFAULTSIZE 19
 #define MAXSTRSIZE 150
+#define MAXOUTPUTSTR 500
+#define LISTSIZE 100
 
 enum bool {FALSE, TRUE};
+
+/* Update functions for linked list collisions - INSERT DONE */
 
 unsigned long generateHash(char* key);
 mvm* resizeTable(mvm* m);
@@ -17,12 +21,12 @@ int isPrime(int num);
 mvm* mvm_init(void) {
   mvm* map;
   map = (mvm *)calloc(1, sizeof(mvm));
-  map->hashTable = (mvmcell*)calloc(DEFAULTSIZE, sizeof(mvmcell*));
+  map->hashTable = (mvmcell**)calloc(DEFAULTSIZE, sizeof(mvmcell*));
   if ((map == NULL) || (map->hashTable == NULL)) {
     ON_ERROR("FAILED TO ALLOCATE MEMORY\n");
   }
   map->numkeys = 0;
-  map->tableSize = DEFAULTSIZE;
+  map->capacity = DEFAULTSIZE;
   return map;
 }
 
@@ -36,17 +40,30 @@ int mvm_size(mvm* m) {
 
 /* Insert one key/value pair */
 void mvm_insert(mvm* m, char* key, char* data) {
-  mvmcell* cell;
+  mvmcell* cell, *ptr;
   int index;
   if (m != NULL && key != NULL && data != NULL) {
     cell = (mvmcell *)calloc(1, sizeof(mvmcell));
     cell->hash = generateHash(key);
+    printf("key = %s, hash = %lu, data = %s\n", key, cell->hash, data);
     cell->key = (char *)malloc(sizeof(char)*MAXSTRSIZE);
     strcpy(cell->key, key);
     cell->data = (char *)malloc(sizeof(char)*MAXSTRSIZE);
     strcpy(cell->data, data);
     index = cell->hash%m->capacity;
-    m->hashTable[index] = cell;
+    printf("insert index = %d\n", index);
+
+    if (m->hashTable[index] != NULL) {
+      ptr = m->hashTable[index];
+      while (ptr->link != NULL) {
+        ptr = ptr->link;
+      }
+      ptr->link = cell;
+    }
+    else {
+      m->hashTable[index] = cell;
+    }
+
     (m->numkeys)++;
     if (m->numkeys > m->capacity*0.8) {
       resizeTable(m);
@@ -54,9 +71,99 @@ void mvm_insert(mvm* m, char* key, char* data) {
   }
 }
 
+char* mvm_print(mvm* m) {
+  char *output = (char *)calloc(1, MAXOUTPUTSTR*sizeof(char));
+  char str[MAXSTRSIZE*3];
+  mvmcell* ptr = m->hashTable[0];
+  int i = 1, count = 0;
+  while (count < m->capacity) {
+    ptr = m->hashTable[count];
+    while (strlen(output) > MAXOUTPUTSTR*0.8*i) {
+      i++;
+      output = (char*)realloc(output, sizeof(char)*MAXOUTPUTSTR*i);
+    }
+    if (ptr != NULL) {
+      sprintf(str, "[%s](%s) ", ptr->key, ptr->data);
+      strcat(output, str);
+    }
+    count++;
+  }
+  return output;
+}
+
+void mvm_delete(mvm* m, char* key) {
+  int index;
+  index = generateHash(key)%m->capacity;
+  if (strcmp(key, m->hashTable[index]->key) == 0) {
+    free(m->hashTable[index]->key);
+    free(m->hashTable[index]->data);
+    free(m->hashTable[index]);
+    m->hashTable[index] = NULL;
+    (m->numkeys)--;
+  }
+}
+
+/* Return the corresponding value for a key */
+char* mvm_search(mvm* m, char* key) {
+  int index;
+  if (m == NULL || key == NULL) {
+    ON_ERROR("INVALID SEARCH INPUT\n");
+  }
+  index = generateHash(key)%m->capacity;
+  printf("search index = %d\n", index);
+  if (m->hashTable[index] != NULL) {
+    if (strcmp(key, m->hashTable[index]->key) == 0) {
+      return m->hashTable[index]->data;
+    }
+  }
+  return NULL;
+}
+
+/* Return *argv[] list of pointers to all values stored
+// with key, n is the number of values */
+char** mvm_multisearch(mvm* m, char* key, int* n) {
+  char **argv = (char **)calloc(1, LISTSIZE*sizeof(char**));
+  mvmcell* ptr;
+  int i = 1, index = generateHash(key)%m->capacity;
+  if (strcmp(mvm_search(m, key), key) == 0) {
+    ptr = m->hashTable[index];
+    argv[*n] = ptr->data;
+    (*n)++;
+    while (ptr->link != NULL) {
+      if ((*n) > (LISTSIZE * i * 0.8)) {
+        i++;
+        argv = (char **)realloc(argv, sizeof(char**)*LISTSIZE*i);
+      }
+      argv[*n] = ptr->data;
+      (*n)++;
+      ptr = ptr->link;
+    }
+  }
+  return argv;
+}
+
+/* Free & set p to NULL */
+void mvm_free(mvm** p) {
+  mvm* m = *p;
+  mvmcell* ptr;
+  int count = 0;
+  while (count < m->capacity) {
+    ptr = m->hashTable[count];
+    if (ptr != NULL) {
+      free(ptr->key);
+      free(ptr->data);
+      free(ptr);
+    }
+    count++;
+  }
+  ptr = NULL;
+  free(m);
+  *p = NULL;
+}
+
 /* djb2 hashing algorithm - taken from http://www.cse.yorku.ca/~oz/hash.html */
 unsigned long generateHash(char* key) {
-  unsigned long hash = 5381, i = 0, length = strlen(key)-1;
+  unsigned long hash = 5381, i = 0;
   while (key[i]) {
     hash = ((hash << 5) + hash) + key[i];
     i++;
@@ -68,7 +175,7 @@ mvm* resizeTable(mvm* m) {
   mvm* newmap;
   int i = 0;
   newmap = (mvm *)calloc(1, sizeof(mvm));
-  newmap->hashTable = (mvmcell*)calloc(m->capacity*5, sizeof(mvmcell*));
+  newmap->hashTable = (mvmcell**)calloc(m->capacity*5, sizeof(mvmcell*));
   if ((newmap == NULL) || (newmap->hashTable == NULL)) {
     ON_ERROR("FAILED TO ALLOCATE MEMORY\n");
   }
@@ -80,7 +187,8 @@ mvm* resizeTable(mvm* m) {
   while (m->numkeys > 0) {
     while (i < m->capacity) {
       if (m->hashTable[i] != NULL) {
-        newmap[m->hashTable[i]->hash%newmap->capacity] = m->hashTable[i];
+        newmap->hashTable[(m->hashTable[i]->hash)%(newmap->capacity)] = m->hashTable[i];
+        m->hashTable[i] = NULL;
         (m->numkeys)--;
       }
       i++;
@@ -89,7 +197,6 @@ mvm* resizeTable(mvm* m) {
   mvm_free(&m);
   return newmap;
 }
-
 
 int isPrime(int num) {
   int factor = 2;
