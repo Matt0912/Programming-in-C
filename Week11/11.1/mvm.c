@@ -13,6 +13,7 @@ enum bool {FALSE, TRUE};
 
 /* Add check malloc function */
 /* Add free function to group free statements */
+/* function create cell */
 
 mvm* mvm_init(void) {
   mvm* list;

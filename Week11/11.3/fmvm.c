@@ -15,33 +15,9 @@ enum bool {FALSE, TRUE};
 /* Write comments at top of fmvm.h*/
 
 unsigned long generateHash(char* key);
-mvm* resizeTable(mvm* m);
+void resizeTable(mvm* m);
 int isPrime(int num);
 void freeCell(mvmcell** ptr);
-void test(void);
-
-void test(void) {
-  mvm* m;
-  int j;
-  char *string;
-  char animals[10][10] = {"cat",  "dog",  "bird",  "horse", "frog",
-                         "cow", "cat", "mouse", "pig", "frog"};
-  char noises[10][10] = {"meow", "bark", "tweet", "neigh", "croak",
-                         "moo", "purr", "squeak", "oink", "ribbit"};
-  m = mvm_init();
-  m->capacity = 10;
-  for(j=0; j<10; j++){
-     printf("j = %d, size = %d\n", j, mvm_size(m));
-     mvm_insert(m, animals[j], noises[j]);
-     printf("j = %d, size = %d\n", j, mvm_size(m));
-     printf("capacity = %d\n", m->capacity);
-     assert(mvm_size(m)==j+1);
-     string = mvm_print(m);
-
-  }
-  free(string);
-
-}
 
 mvm* mvm_init(void) {
   mvm* map;
@@ -66,18 +42,15 @@ int mvm_size(mvm* m) {
 /* Insert one key/value pair */
 void mvm_insert(mvm* m, char* key, char* data) {
   mvmcell* cell, *ptr;
-  char *string;
   int index;
   if (m != NULL && key != NULL && data != NULL) {
     cell = (mvmcell *)calloc(1, sizeof(mvmcell));
-    cell->hash = generateHash(key);
-    /*printf("key = %s, hash = %lu, data = %s\n", key, cell->hash, data);*/
     cell->key = (char *)malloc(sizeof(char)*MAXSTRSIZE);
     strcpy(cell->key, key);
     cell->data = (char *)malloc(sizeof(char)*MAXSTRSIZE);
     strcpy(cell->data, data);
     cell->link = NULL;
-    index = cell->hash%m->capacity;
+    index = generateHash(key)%m->capacity;
 
     if (m->hashTable[index] != NULL) {
       ptr = m->hashTable[index];
@@ -92,11 +65,7 @@ void mvm_insert(mvm* m, char* key, char* data) {
 
     (m->numkeys)++;
     if (m->numkeys > m->capacity*0.8) {
-      printf("size = %d, capacity = %d\n", mvm_size(m), m->capacity);
-      m = resizeTable(m);
-      string = mvm_print(m);
-      printf("test output %s\n", string);
-      printf("size = %d, capacity = %d\n", mvm_size(m), m->capacity);
+      resizeTable(m);
     }
   }
 }
@@ -156,7 +125,6 @@ char* mvm_search(mvm* m, char* key) {
     ON_ERROR("INVALID SEARCH INPUT\n");
   }
   index = generateHash(key)%m->capacity;
-  printf("search index = %d\n", index);
   if (m->hashTable[index] != NULL) {
     if (strcmp(key, m->hashTable[index]->key) == 0) {
       return m->hashTable[index]->data;
@@ -224,45 +192,48 @@ unsigned long generateHash(char* key) {
   return hash;
 }
 
-mvm* resizeTable(mvm* m) {
-  mvm* newmap;
-  int i = 0, newIndex;
-  mvmcell* ptr;
-  char *string;
-  string = mvm_print(m);
-  printf("resized table\n %s\n", string);
-  newmap = (mvm *)calloc(1, sizeof(mvm));
-  newmap->numkeys = m->numkeys;
-  newmap->capacity = m->capacity*5;
-  while (!isPrime(newmap->capacity)) {
-    (newmap->capacity)++;
+void resizeTable(mvm* m) {
+  mvmcell** newHashTable;
+  int i = 0, newIndex, newCapacity;
+  mvmcell* ptr, *ptr2, *prevPtr;
+  newCapacity = m->capacity*5;
+  while (!isPrime(newCapacity)) {
+    (newCapacity)++;
   }
-  newmap->hashTable = (mvmcell**)calloc(newmap->capacity, sizeof(mvmcell*));
-  if ((newmap == NULL) || (newmap->hashTable == NULL)) {
+  newHashTable = (mvmcell**)calloc(newCapacity, sizeof(mvmcell*));
+  if (newHashTable == NULL) {
     ON_ERROR("FAILED TO ALLOCATE MEMORY\n");
   }
-
-  while (m->numkeys > 0) {
-    while (i < m->capacity) {
-      ptr = m->hashTable[i];
-      if (ptr != NULL) {
-        newIndex = ptr->hash%newmap->capacity;
-        newmap->hashTable[newIndex] = ptr;
-        while (ptr->link != NULL) {
-          ptr = ptr->link;
-          (m->numkeys)--;
+  while (i < m->capacity) {
+    ptr = m->hashTable[i];
+    if (ptr != NULL) {
+      newIndex = generateHash(ptr->key)%newCapacity;
+      newHashTable[newIndex] = ptr;
+      while (ptr->link != NULL) {
+        prevPtr = ptr;
+        ptr = ptr->link;
+        prevPtr->link = NULL;
+        newIndex = generateHash(ptr->key)%newCapacity;
+        if (newHashTable[newIndex] != NULL) {
+          ptr2 = newHashTable[newIndex];
+          while (ptr2->link != NULL) {
+            ptr2 = ptr2->link;
+          }
+          ptr2->link = ptr;
         }
-        m->hashTable[i] = NULL;
-        (m->numkeys)--;
+        else {
+          newHashTable[newIndex] = ptr;
+        }
       }
-      i++;
-      printf("numkeys = %d, i = %d\n", m->numkeys, i);
+      m->hashTable[i] = NULL;
     }
+    i++;
   }
-  printf("size = %d, capacity = %d\n", mvm_size(newmap), newmap->capacity);
-  mvm_print(newmap);
-  mvm_free(&m);
-  return newmap;
+
+  m->capacity = newCapacity;
+  free(m->hashTable);
+  m->hashTable = newHashTable;
+
 }
 
 void freeCell(mvmcell** ptr) {

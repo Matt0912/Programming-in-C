@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "fmvm.h"
+void test(void);
 
 int main(void) {
   int i, j;
@@ -65,7 +66,6 @@ int main(void) {
   mvm_insert(m, "frog", "ribbit");
   assert(mvm_size(m)==5);
   str = mvm_print(m);
-  printf("%s\n", str);
   i = strcmp(str, "[bird](tweet) [cat](meow) [frog](croak) -> [frog](ribbit) [horse](neigh) ");
   free(str);
   assert(i==0);
@@ -137,4 +137,25 @@ int main(void) {
   printf("Checking Test Function ... Stop\n");
 
   return 0;
+}
+
+void test(void) {
+  mvm* m;
+  int j;
+  char *string;
+  char animals[10][10] = {"cat",  "dog",  "bird",  "horse", "frog",
+                         "cow", "cat", "mouse", "pig", "frog"};
+  char noises[10][10] = {"meow", "bark", "tweet", "neigh", "croak",
+                         "moo", "purr", "squeak", "oink", "ribbit"};
+  m = mvm_init();
+  m->capacity = 2;
+  for(j=0; j<10; j++){
+     mvm_insert(m, animals[j], noises[j]);
+     assert(mvm_size(m)==j+1);
+  }
+  string = mvm_print(m);
+  printf("%s\n", string);
+  free(string);
+  mvm_free(&m);
+
 }

@@ -7,11 +7,16 @@
    O(n) deletion
 */
 
+/* Reallocating memory but creating new hash tables and re-pointing to new tables
+// Using linked lists to deal with key collisions, then when finding rhymes
+// I'm only printing the ones which match the search key */
+/* Very slow once switching to fmvm.c, most likely the hashing algorithm - realised
+// djb2 is very slow */
+
 /* Error that can't be ignored */
 #define ON_ERROR(STR) fprintf(stderr, STR); exit(EXIT_FAILURE)
 
 struct mvmcell {
-   unsigned long hash;
    char* key;
    char* data;
    struct mvmcell* link;
