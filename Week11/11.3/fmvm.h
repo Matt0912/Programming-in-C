@@ -40,3 +40,5 @@ char* mvm_search(mvm* m, char* key);
 char** mvm_multisearch(mvm* m, char* key, int* n);
 /* Free & set p to NULL */
 void mvm_free(mvm** p);
+
+void test(void);

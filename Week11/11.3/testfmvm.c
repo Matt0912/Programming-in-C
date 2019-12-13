@@ -11,7 +11,7 @@ int main(void) {
   char* str;
   char** av;
   char animals[5][10] = {"cat",  "dog",  "bird",  "horse", "frog"};
-  char  noises[5][10] = {"meow", "bark", "tweet", "neigh", "croak"};
+  char noises[5][10] = {"meow", "bark", "tweet", "neigh", "croak"};
 
   printf("Basic MVM Tests ... Start\n");
   /* Set up empty array */
@@ -66,13 +66,13 @@ int main(void) {
   assert(mvm_size(m)==5);
   str = mvm_print(m);
   printf("%s\n", str);
-  i = strcmp(str, "[frog](ribbit) [frog](croak) [horse](neigh) [bird](tweet) [cat](meow) ");
+  i = strcmp(str, "[bird](tweet) [cat](meow) [frog](croak) -> [frog](ribbit) [horse](neigh) ");
   free(str);
   assert(i==0);
 
   /* Search Multiple Keys */
   str = mvm_search(m, "frog");
-  i = strcmp(str, "ribbit");
+  i = strcmp(str, "croak");
   assert(i==0);
 
   /* Multisearching */
@@ -88,18 +88,17 @@ int main(void) {
   free(av);
   av = mvm_multisearch(m, "frog", &i);
   assert(i==2);
-  i = strcmp(av[0], "ribbit");
-  j = strcmp(av[1], "croak");
+  i = strcmp(av[0], "croak");
+  j = strcmp(av[1], "ribbit");
   assert((i==0)&&(j==0));
   free(av);
 
   /* Delete Multiple Keys */
-  mvm_delete(m, "frog");
-  assert(mvm_size(m)==4);
+  /* Deleting single key now deletes all values associated with that key */
   mvm_delete(m, "frog");
   assert(mvm_size(m)==3);
   str = mvm_print(m);
-  i = strcmp(str, "[horse](neigh) [bird](tweet) [cat](meow) ");
+  i = strcmp(str, "[bird](tweet) [cat](meow) [horse](neigh) ");
   assert(i==0);
   free(str);
 
@@ -121,17 +120,21 @@ int main(void) {
   mvm_delete(m, "bird");
   assert(mvm_size(m)==2);
   str = mvm_print(m);
-  i = strcmp(str, "[horse](neigh) [cat](meow) ");
+  i = strcmp(str, "[cat](meow) [horse](neigh) ");
   assert(i==0);
   free(str);
 
   /* Freeing */
+  printf("test\n");
   mvm_free(&m);
   assert(m==NULL);
   assert(mvm_size(m)==0);
 
   printf("Basic MVM Tests ... Stop\n");
 
+  printf("Checking Test Function ... Start\n");
+  test();
+  printf("Checking Test Function ... Stop\n");
 
   return 0;
 }
