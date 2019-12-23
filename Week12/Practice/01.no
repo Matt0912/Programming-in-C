@@ -1,0 +1,9 @@
+BEGIN
+  ONE
+    NOUGHT
+    ONE
+    ONE
+    NOUGHT
+ONE ONE
+NOUGHT
+END
