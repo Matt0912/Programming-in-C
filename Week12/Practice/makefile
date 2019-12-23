@@ -1,10 +1,9 @@
 CFLAGS = -pedantic -ansi  -Wall -Wextra -Wfloat-equal -O2 -lncurses -lm -ltinfo
 DFLAGS = -g3 -Wall -Wextra -Werror -Wfloat-equal -pedantic -ansi -lm -lncurses -ltinfo
 SFLAGS = -g3 -fsanitize=undefined -fsanitize=address -lm -lncurses -ltinfo
-TESTBASE = WireworldCurses
-INCS = neillncurses.h
-SOURCES =  $(TESTBASE).c neillncurses.c
-EXECS = $(TESTBASE) $(TESTBASE)_d $(TESTBASE)_s test
+TESTBASE = 01
+SOURCES =  $(TESTBASE).c
+EXECS = $(TESTBASE) $(TESTBASE)_d $(TESTBASE)_s
 CC = clang
 
 run: $(TESTBASE)
