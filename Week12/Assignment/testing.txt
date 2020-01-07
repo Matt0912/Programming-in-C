@@ -1,0 +1,22 @@
+To allow for the tests to run and not print errors every time, I created enumerated
+error codes which cause every function to return as soon as the error code is
+changed from PASS. This allows me to test if the program detects the correct problem.
+Want to keep the testing in the initial file so it is tested each time a modification
+is made.
+
+May need to put this in another program - test parse and test interp (ASK NEILL)
+Can I change mvm.c or will it cause errors (ASK NEILL)
+
+
+strcon doesn't test if single quotes are used - still fails but should it return error message?
+All variable/constant functions were tested independently to check that they
+returned the correct result, and then tested properly through varcon to check that
+they returned syntax errors if the input was invalid - this couldn't be done
+using the individual functions because triggering a syntax error just because
+something wasn't a string constant would prevent it being evaluated as a number
+constant (can only be tested through varcon)
+
+All other aspects of mvm.c remain the same except for insertion order, so this was
+tested to make sure it was working properly. All other mvm.c functions were tested in
+testmvm.c prior. ( I realise this makes mvm.c have O(n) insertion complexity,
+but it was the easiest way of modifying to fit the current task)

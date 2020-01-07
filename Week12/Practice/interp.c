@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#define NDEBUG
+
+/* SET TEST = 1 TO RUN TESTS, SET TEST = 0 TO DISABLE TESTS */
+#define TEST 0
 #include <assert.h>
 
 #define MAXWORDS 100
@@ -26,10 +28,12 @@ void printState(Program *p);
 void test(void);
 
 int main(int argc, char** argv) {
-  int i = 0;
+  int i = 0, runTests = TEST;
   FILE *fp;
   Program p;
-  test();
+  if (runTests) {
+    test();
+  }
 
   if (argc == 2) {
     if ((fp = fopen(argv[1], "r")) == NULL) {
@@ -51,6 +55,7 @@ int main(int argc, char** argv) {
   p.totalWords = i;
 
   prog(&p);
+  printf("\n");
   printState(&p);
 
   return PASS;
@@ -110,6 +115,7 @@ void statement(Program *p) {
     return;
   }
   p->errorState = OneZeroERROR;
+  return;
 }
 
 void printState(Program *p) {
@@ -140,6 +146,8 @@ void test(void) {
   char testProg5[MAXWORDS][MAXWORDLEN] = {"BEGIN", "ONE", "NOUGHT", "ONE", "END"};
   char testProg6[MAXWORDS][MAXWORDLEN] = {"BEGIN", "ONE", "NOUGHT", "TWO", "END"};
   char testProg7[MAXWORDS][MAXWORDLEN] = {"ONE", "NOUGHT", "TWO", "END"};
+
+  fprintf(stderr, "\nINITIALISING TESTS...\n");
 
   /* Test initProgram */
   initProgram(&testP);
@@ -232,5 +240,7 @@ void test(void) {
   assert(testP.errorState == PASS);
   prog(&testP);
   assert(testP.errorState == BeginERROR);
+
+  fprintf(stderr, "\nALL TESTS PASSED\n\n");
 
 }

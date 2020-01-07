@@ -1,8 +1,9 @@
-CFLAGS = -pedantic -ansi  -Wall -Wextra -Wfloat-equal -O2 -lncurses -lm -ltinfo
-DFLAGS = -g3 -Wall -Wextra -Werror -Wfloat-equal -pedantic -ansi -lm -lncurses -ltinfo
-SFLAGS = -g3 -fsanitize=undefined -fsanitize=address -lm -lncurses -ltinfo
-TESTBASE = interp
-SOURCES =  $(TESTBASE).c
+CFLAGS = -O2 -Wall -Wextra -Werror -Wfloat-equal -pedantic -ansi
+DFLAGS = -g3 -Wall -Wextra -Werror -Wfloat-equal -pedantic -ansi
+SFLAGS = -g3 -fsanitize=undefined -fsanitize=address
+TESTBASE = parse
+INCS = mvm.h
+SOURCES =  $(TESTBASE).c mvm.c
 EXECS = $(TESTBASE) $(TESTBASE)_d $(TESTBASE)_s
 CC = clang
 
@@ -11,13 +12,13 @@ run: $(TESTBASE)
 
 all: $(EXECS)
 
-$(TESTBASE): $(SOURCES)
+$(TESTBASE): $(SOURCES) $(INCS)
 	$(CC) $(SOURCES) -o $@ $(CFLAGS)
 
-$(TESTBASE)_d: $(SOURCES)
+$(TESTBASE)_d: $(SOURCES) $(INCS)
 	$(CC) $(SOURCES) -o $@ $(DFLAGS)
 
-$(TESTBASE)_s: $(SOURCES)
+$(TESTBASE)_s: $(SOURCES) $(INCS)
 	$(CC) $(SOURCES) -o $@ $(SFLAGS)
 
 clean:
