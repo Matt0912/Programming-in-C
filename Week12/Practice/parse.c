@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   prog(&p);
   printState(&p);
 
-  return PASS;
+  return 0;
 }
 
 void initProgram(Program *p) {
