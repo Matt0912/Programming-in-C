@@ -114,11 +114,11 @@ void testVarCon(void) {
                                   "\"HELLO.TXT", "'HELLO.TXT'", "#URYYB.GKG#",
                                   "#UR Y  YB  GKG#", "#URYYB.GKG", "URYYB.GKG",
                                   "#URYYB.GkG#", "#URYYB176.GKG#",
-                                  "#URYYB176@/1#.GKG#"};
+                                  "#URYYB176@/1#.GKG#", "\"", "##"};
   bool strconBool[] = {TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE,
-                       FALSE, TRUE, TRUE};
-  int strconError[] = {PASS, PASS, SyntaxERROR, PASS, PASS, PASS,
-                       SyntaxERROR, PASS, SyntaxERROR, PASS, PASS};
+                       FALSE, TRUE, TRUE, FALSE, FALSE};
+  int strconError[] = {PASS, PASS, SyntaxERROR, PASS, PASS, PASS, SyntaxERROR,
+                       PASS, SyntaxERROR, PASS, PASS, SyntaxERROR, SyntaxERROR};
   /************************** NUMCON *********************************/
   char numconData[][MAXWORDLEN] = {"14.103", "1", "140589400000000019909",
                                   "0.153201", "-6", "-17.8", "12.6.5",
@@ -245,6 +245,10 @@ void testVarCon(void) {
 void testGrammarFunc(void) {
   Program testP;
   int i, size;
+
+  char fileTests[][MAXWORDLEN] = {"\"WOW.txt\"", "\"file1.nal\"", "#WOW.TXT#", "##"};
+  int fileErrorStates[] = {PASS, PASS, PASS, SyntaxERROR};
+
   char incTests[][MAXWORDLEN] = {"%ABC", "%T", "%", "$ABC", "93", ".%K", "%R1"};
   int incErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR,
                             SyntaxERROR, SyntaxERROR, SyntaxERROR};
@@ -266,6 +270,15 @@ void testGrammarFunc(void) {
                                    "%", "$%ABC", "URYYB.GKG#", "97hello32"};
   int printErrorStates[] = {PASS, PASS, PASS, PASS, PASS, SyntaxERROR,
                             SyntaxERROR, SyntaxERROR, SyntaxERROR};
+
+  char rndTests[][MAXWORDLEN] = {"(", "%E", ")",
+                                 "(", "%NUMBERVAR", ")",
+                                 "(", "%", ")",
+                                 "(", "$P", ")",
+                                 "(", "%E", "()",
+                                 "[", "%E", ")"};
+  int rndErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR,
+                            SyntaxERROR, SyntaxERROR};
 
   /* PROG & INSTRS - test prog & opening/closing brackets */
   /* prog -> '{' -> instrs -> '}' */
@@ -291,6 +304,19 @@ void testGrammarFunc(void) {
 
   /* INSTRUCT FUNCTIONS */
   /* prog -> '{' -> instrs -> INSTRUCT -> instrs -> */
+
+  /* FILE FUNCTION TESTS */
+  initProgram(&testP);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "FILE");
+  strcpy(testP.words[3], "}");
+  size = sizeof(fileTests)/sizeof(fileTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[2], fileTests[i]);
+    prog(&testP);
+    assert(testP.errorState == fileErrorStates[i]);
+  }
 
   /* INC FUNCTION TESTS */
   initProgram(&testP);
@@ -323,6 +349,11 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == setErrorStates[i]);
   }
+  strcpy(testP.words[2], "!=");
+  strcpy(testP.words[1], setTestsSTR1[0]);
+  strcpy(testP.words[3], setTestsSTR2[0]);
+  prog(&testP);
+  assert(testP.errorState == SyntaxERROR);
 
   /* JUMP FUNCTION TESTS*/
   initProgram(&testP);
@@ -351,6 +382,35 @@ void testGrammarFunc(void) {
     assert(testP.errorState == printErrorStates[i]);
   }
   assert(testP.errorState == SyntaxERROR);
+
+  /* RND FUNCTION TESTS*/
+  initProgram(&testP);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "RND");
+  strcpy(testP.words[5], "}");
+  size = sizeof(rndTests)/sizeof(rndTests[0]);
+  for (i = 0; i < size; i = i + 3) {
+    testP.errorState = PASS;
+    strcpy(testP.words[2], rndTests[i]);
+    strcpy(testP.words[3], rndTests[i+1]);
+    strcpy(testP.words[4], rndTests[i+2]);
+    prog(&testP);
+    assert(testP.errorState == rndErrorStates[i/3]);
+  }
+
+  /* TEST FUNCTIONERROR */
+  initProgram(&testP);
+  testP.totalWords = 50;
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "jUMP");
+  strcpy(testP.words[3], "}");
+  size = sizeof(jumpTests)/sizeof(jumpTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[2], jumpTests[i]);
+    prog(&testP);
+    assert(testP.errorState == FunctionERROR);
+  }
 
 }
 
@@ -408,6 +468,9 @@ void instruct(Program *p) {
   // If it goes through the whole while loop without going to the next word,
   // none of the functions have been called and a FunctionERROR is thrown */
   if (p->currWord == currentWord) {
+    file(p);
+  }
+  if (p->currWord == currentWord) {
     inc(p);
   }
   if (p->currWord == currentWord) {
@@ -419,13 +482,39 @@ void instruct(Program *p) {
   if (p->currWord == currentWord) {
     print(p);
   }
+  if (p->currWord == currentWord) {
+    rnd(p);
+  }
   if (p->currWord == currentWord && p->errorState == PASS) {
-    printf("%s reached the end: %d\n", p->words[p->currWord], p->errorState);
     p->errorState = FunctionERROR;
   }
 }
 
 /* ALL INSTRUCTION FUNCTIONS */
+
+void file(Program *p) {
+  /* Line of code at start of every function */
+  if (p->errorState != PASS) {
+    return;
+  }
+  if (strcmp(p->words[p->currWord], "FILE") == 0) {
+    nextWord(p);
+    if (!strcon(p)) {
+      p->errorState = SyntaxERROR;
+      return;
+    }
+  }
+}
+
+void abortEX(Program *p) {
+  /* Line of code at start of every function */
+  if (p->errorState != PASS) {
+    return;
+  }
+  if (strcmp(p->words[p->currWord], "ABORT") == 0) {
+    exit(1);
+  }
+}
 
 void inc(Program *p) {
   /* Line of code at start of every function */
@@ -456,6 +545,10 @@ void set(Program *p) {
         return;
       }
     }
+    else {
+      p->errorState = SyntaxERROR;
+      return;
+    }
   }
   if (numvar(p)) {
     nextWord(p);
@@ -465,6 +558,10 @@ void set(Program *p) {
         p->errorState = SyntaxERROR;
         return;
       }
+    }
+    else {
+      p->errorState = SyntaxERROR;
+      return;
     }
   }
 }
@@ -511,6 +608,29 @@ void print(Program *p) {
   if (strcmp(p->words[p->currWord], "PRINTN") == 0) {
     nextWord(p);
     varcon(p);
+  }
+}
+
+void rnd(Program *p) {
+  int gramCheck = 0;
+  /* Line of code at start of every function */
+  if (p->errorState != PASS) {
+    return;
+  }
+  if (strcmp(p->words[p->currWord], "RND") == 0) {
+    nextWord(p);
+    if (strcmp(p->words[p->currWord], "(") == 0) {
+      gramCheck++;
+      nextWord(p);
+      if (numvar(p)) {
+        gramCheck++;
+        nextWord(p);
+        if (strcmp(p->words[p->currWord], ")") == 0) {
+          return;
+        }
+      }
+    }
+    p->errorState = SyntaxERROR;
   }
 }
 
@@ -599,10 +719,17 @@ bool strcon(Program *p) {
   if (p->errorState != PASS) {
     return FALSE;
   }
+
   /* Check if normal string */
   if (p->words[p->currWord][0] == '"') {
     if (p->words[p->currWord][length - 1] == '"') {
+      if (length > 2) {
         return TRUE;
+      }
+      else {
+        p->errorState = SyntaxERROR;
+        return FALSE;
+      }
     }
     else {
       p->errorState = SyntaxERROR;
@@ -620,7 +747,13 @@ bool strcon(Program *p) {
         }
         i++;
       }
-      return TRUE;
+      if (length > 2) {
+        return TRUE;
+      }
+      else {
+        p->errorState = SyntaxERROR;
+        return FALSE;
+      }
     }
     else {
       p->errorState = SyntaxERROR;
