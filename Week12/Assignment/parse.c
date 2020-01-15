@@ -7,8 +7,8 @@
 /* Want to be able to have resizeable arrays of any data type */
 #include "mvm.h"
 
-#define MAXWORDLEN 500
-#define MAXWORDS 1000
+#define MAXWORDLEN 100
+#define MAXWORDS 50
 
 enum ErrorCodes {StartERROR = 101, SyntaxERROR = 102, OverflowERROR = 103,
                  FunctionERROR = 104, EndERROR = 105, Abort = 200};
@@ -16,14 +16,15 @@ enum check {FAIL, PASS};
 typedef enum {FALSE, TRUE} bool;
 
 typedef struct prog {
-  char words[MAXWORDS][MAXWORDLEN];
+  char **words;
   int currWord;
   int totalWords;
   int errorState;
 } Program;
 
-void readFile(Program *p, int argc, char** argv);
-void initProgram(Program *p);
+FILE* readFile(int argc, char** argv, int *maxWords);
+void initProgram(Program *p, int maxWords);
+void fillWords(Program *p, FILE *fp);
 
 void prog(Program *p);
 void instrs(Program *p);
@@ -51,6 +52,7 @@ void ifequal(Program *p);
 void ifgreater(Program *p);
 void nextWord(Program *p);
 void printState(Program *p);
+void freeProgram(Program *p, int maxWords);
 
 void test(void);
 void testVarCon(void);
@@ -58,26 +60,27 @@ void testGrammarFunc(void);
 
 int main(int argc, char** argv) {
   Program p;
+  int maxSize;
+  FILE *fp;
   test();
 
-  initProgram(&p);
-  readFile(&p, argc, argv);
+  fp = readFile(argc, argv, &maxSize);
+  initProgram(&p, maxSize);
+  fillWords(&p, fp);
 
   prog(&p);
 
   printState(&p);
-  printf("%d\n", p.currWord);
-  assert(p.currWord == p.totalWords - 1);
+
+  freeProgram(&p, maxSize);
+  fclose(fp);
 
   return 0;
 }
 
 /* Read in file to program p - all ROT18 & strings stored as 1 word */
-void readFile(Program *p, int argc, char** argv) {
+FILE* readFile(int argc, char** argv, int *maxWords) {
   FILE *fp;
-  int i = 0, length;
-  char currentWord[MAXWORDLEN], currentString[MAXWORDLEN];
-  bool string = FALSE, rot18 = FALSE;
 
   if (argc == 2) {
     if ((fp = fopen(argv[1], "r")) == NULL) {
@@ -90,22 +93,43 @@ void readFile(Program *p, int argc, char** argv) {
     exit(1);
   }
 
+  fseek(fp, 0, SEEK_END);
+  /* Size = # of bytes */
+  *maxWords = ftell(fp);
+  rewind(fp);
+
+  return fp;
+}
+
+void fillWords(Program *p, FILE *fp) {
+  int i = 0, length, currentSize = MAXWORDLEN;
+  char currentWord[MAXWORDLEN];
+  char *currentString = (char*)calloc(MAXWORDLEN,sizeof(char));
+  bool string = FALSE, rot18 = FALSE;
+
   while (fscanf(fp, "%s", currentWord) != EOF) {
+    /* If words are part of a string, add them to current string */
     if (string == TRUE || rot18 == TRUE) {
-      strcat(currentString, " ");
-      strcat(currentString, currentWord);
-      length = strlen(currentString);
+      length = strlen(currentString) + strlen(currentWord) + 1;
+      if (length > currentSize/2) {
+        currentSize *= 2;
+        currentString = realloc(currentString, currentSize);
+      }
+      sprintf(currentString, "%s %s", currentString, currentWord);
       if (currentString[length-1] == '"') {
         string = FALSE;
+        p->words[i] = realloc(p->words[i], currentSize);
         strcpy(p->words[i], currentString);
         i++;
       }
       if (currentString[length - 1] == '#') {
         rot18 = FALSE;
+        p->words[i] = realloc(p->words[i], currentSize);
         strcpy(p->words[i], currentString);
         i++;
       }
     }
+    /* If word is starting a string */
     else if (currentWord[0] == '"') {
       length = strlen(currentWord);
       if (currentWord[length-1] == '"') {
@@ -128,14 +152,14 @@ void readFile(Program *p, int argc, char** argv) {
         strcpy(currentString, currentWord);
       }
     }
+    /* If word is not a string, simply copy it in */
     else {
       strcpy(p->words[i], currentWord);
       i++;
     }
   }
-
   p->totalWords = i;
-
+  free(currentString);
 }
 
 void test(void) {
@@ -143,7 +167,7 @@ void test(void) {
 
   printf(" INITIALISING TESTS ... \n");
   /* TEST INITPROGRAM */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   assert(testP.currWord == 0);
   assert(testP.words[10][0] == '\0');
   assert(testP.words[MAXWORDS-1][0] == '\0');
@@ -164,6 +188,7 @@ void test(void) {
   nextWord(&testP);
   nextWord(&testP);
   assert(testP.errorState == EndERROR);
+  freeProgram(&testP, MAXWORDS);
 
   /* TEST VARIABLE/CONSTANT FUNCTIONS */
   testVarCon();
@@ -215,7 +240,7 @@ void testVarCon(void) {
   size3 = sizeof(strconData)/sizeof(strconData[0]);
   size4 = sizeof(numconData)/sizeof(numconData[0]);
   /* TEST STRVAR */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   testP.totalWords = size1;
   for (i = 0; i < size1; i++) {
     testP.errorState = PASS;
@@ -224,9 +249,10 @@ void testVarCon(void) {
     assert(testP.errorState == strvarError[i]);
     nextWord(&testP);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* TEST NUMVAR */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   testP.totalWords = size2;
   for (i = 0; i < size2; i++) {
     testP.errorState = PASS;
@@ -235,9 +261,10 @@ void testVarCon(void) {
     assert(testP.errorState == numvarError[i]);
     nextWord(&testP);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* TEST STRCON */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   testP.totalWords = size3;
   for (i = 0; i < size3; i++) {
     testP.errorState = PASS;
@@ -246,9 +273,10 @@ void testVarCon(void) {
     assert(testP.errorState == strconError[i]);
     nextWord(&testP);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* TEST NUMCON */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   testP.totalWords = size4;
   for (i = 0; i < size4; i++) {
     testP.errorState = PASS;
@@ -257,9 +285,10 @@ void testVarCon(void) {
     assert(testP.errorState == numconError[i]);
     nextWord(&testP);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* TEST VAR  - All tests for strvar/numvar should pass */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   testP.totalWords = size1 + size2 + size3 + size4;
   for (i = 0; i < size1; i++) {
     testP.errorState = PASS;
@@ -321,6 +350,7 @@ void testVarCon(void) {
     nextWord(&testP);
     j++;
   }
+  freeProgram(&testP, MAXWORDS);
 
 }
 
@@ -372,9 +402,11 @@ void testGrammarFunc(void) {
   int rndErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR,
                             SyntaxERROR, SyntaxERROR};
 
+  char functionErrorTests[][MAXWORDLEN] = {"jUMP", "PRINT ", "inc", "Set", "AB0RT"};
+
   /* PROG & INSTRS - test prog & opening/closing brackets */
   /* prog -> '{' -> instrs -> '}' */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   /* Check empty array */
   prog(&testP);
   assert(testP.errorState == StartERROR);
@@ -393,12 +425,13 @@ void testGrammarFunc(void) {
   strcpy(testP.words[1], "}");
   prog(&testP);
   assert(testP.errorState == PASS);
+  freeProgram(&testP, MAXWORDS);
 
   /* INSTRUCT FUNCTIONS */
   /* prog -> '{' -> instrs -> INSTRUCT -> instrs -> */
 
   /* FILE FUNCTION TESTS */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "FILE");
   strcpy(testP.words[3], "}");
@@ -409,17 +442,19 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == fileErrorStates[i]);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* ABORT FUNCTION TEST */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "ABORT");
   strcpy(testP.words[2], "}");
   prog(&testP);
   assert(testP.errorState == PASS);
+  freeProgram(&testP, MAXWORDS);
 
   /* INPUT FUNCTION TESTS */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "IN2STR");
   strcpy(testP.words[2], "(");
@@ -445,9 +480,10 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == inputNumErrorStates[i]);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* IFCOND FUNCTION TESTS */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "IFEQUAL");
   strcpy(testP.words[2], "(");
@@ -473,9 +509,10 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == ifcondErrorStates[i]);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* INC FUNCTION TESTS */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "INC");
   strcpy(testP.words[2], "(");
@@ -488,9 +525,10 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == incErrorStates[i]);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* SET FUNCTION TESTS */
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[2], "=");
   strcpy(testP.words[4], "}");
@@ -512,9 +550,10 @@ void testGrammarFunc(void) {
   strcpy(testP.words[3], setTestsSTR2[0]);
   prog(&testP);
   assert(testP.errorState == SyntaxERROR);
+  freeProgram(&testP, MAXWORDS);
 
   /* JUMP FUNCTION TESTS*/
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   testP.totalWords = 50;
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "JUMP");
@@ -526,9 +565,10 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == jumpErrorStates[i]);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* PRINT FUNCTION TESTS*/
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "PRINT");
   strcpy(testP.words[3], "}");
@@ -540,9 +580,10 @@ void testGrammarFunc(void) {
     assert(testP.errorState == printErrorStates[i]);
   }
   assert(testP.errorState == SyntaxERROR);
+  freeProgram(&testP, MAXWORDS);
 
   /* RND FUNCTION TESTS*/
-  initProgram(&testP);
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "RND");
   strcpy(testP.words[5], "}");
@@ -555,28 +596,31 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == rndErrorStates[i/3]);
   }
+  freeProgram(&testP, MAXWORDS);
 
   /* TEST FUNCTIONERROR */
-  initProgram(&testP);
-  testP.totalWords = 50;
+  initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
-  strcpy(testP.words[1], "jUMP");
   strcpy(testP.words[3], "}");
-  size = sizeof(jumpTests)/sizeof(jumpTests[0]);
+  size = sizeof(functionErrorTests)/sizeof(functionErrorTests[0]);
   for (i = 0; i < size; i++) {
     testP.errorState = PASS;
+    strcpy(testP.words[1], functionErrorTests[i]);
     strcpy(testP.words[2], jumpTests[i]);
     prog(&testP);
     assert(testP.errorState == FunctionERROR);
   }
+  freeProgram(&testP, MAXWORDS);
 
 }
 
 /* Initialise struct for storage of current program being parsed */
-void initProgram(Program *p) {
+void initProgram(Program *p, int maxWords) {
   int i;
   p->currWord = 0;
-  for (i = 0; i < MAXWORDS; i++) {
+  p->words = (char **)calloc(maxWords, sizeof(char*));
+  for (i = 0; i < maxWords; i++) {
+    p->words[i] = (char *)calloc(MAXWORDLEN, sizeof(char));
     p->words[i][0] = '\0';
   }
   p->errorState = PASS;
@@ -903,6 +947,10 @@ void print(Program *p, bool *checked) {
   if (strcmp(p->words[p->currWord], "PRINT") == 0) {
     nextWord(p);
     varcon(p);
+    /* Special case only for PRINT (Not PRINTN) */
+    if (strcmp(p->words[p->currWord], "\"\"") == 0) {
+      p->errorState = PASS;
+    }
     *checked = TRUE;
   }
   if (strcmp(p->words[p->currWord], "PRINTN") == 0) {
@@ -1091,8 +1139,8 @@ bool numcon(Program *p) {
 
 /* Function to move to next word */
 void nextWord(Program *p) {
-  (p->currWord)++;
-  printf("%s\n", p->words[p->currWord]);
+  (p->currWord)++;/*
+  printf("%s\n", p->words[p->currWord]);*/
   if (p->words[p->currWord][0] == '\0') {
     p->errorState = EndERROR;
   }
@@ -1128,6 +1176,14 @@ void printState(Program *p) {
               p->currWord, p->words[p->currWord]);
       break;
   }
+}
+
+void freeProgram(Program *p, int maxWords) {
+  int i;
+  for (i = 0; i < maxWords; i++) {
+    free(p->words[i]);
+  }
+  free(p->words);
 }
 
 /* StartERROR = No opening bracket, could be empty array
