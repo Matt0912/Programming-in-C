@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 /* SET TEST = 1 TO RUN TESTS, SET TEST = 0 TO DISABLE TESTS */
-#define TEST 0
+#define TEST 1
 #include <assert.h>
 
 #define MAXWORDS 100
@@ -147,7 +147,11 @@ void test(void) {
   char testProg6[MAXWORDS][MAXWORDLEN] = {"BEGIN", "ONE", "NOUGHT", "TWO", "END"};
   char testProg7[MAXWORDS][MAXWORDLEN] = {"ONE", "NOUGHT", "TWO", "END"};
 
+  freopen("TESTOUTPUT.txt", "w", stdout);
+
   fprintf(stderr, "\nINITIALISING TESTS...\n");
+
+
 
   /* Test initProgram */
   initProgram(&testP);
@@ -242,5 +246,7 @@ void test(void) {
   assert(testP.errorState == BeginERROR);
 
   fprintf(stderr, "\nALL TESTS PASSED\n\n");
+
+  freopen("/dev/tty","w",stdout);
 
 }
