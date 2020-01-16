@@ -19,6 +19,7 @@ typedef struct prog {
   char **words;
   int currWord;
   int totalWords;
+  mvm *vars;
   int errorState;
 } Program;
 
@@ -50,6 +51,10 @@ bool numcon(Program *p);
 
 void ifequal(Program *p);
 void ifgreater(Program *p);
+
+void printString(Program *p);
+
+void ROTDecode(char *ROTString);
 void nextWord(Program *p);
 void printState(Program *p);
 void freeProgram(Program *p, int maxWords);
@@ -89,7 +94,7 @@ FILE* readFile(int argc, char** argv, int *maxWords) {
     }
   }
   else {
-    fprintf(stderr, "Invalid usage, try: ./parse file.nal\n");
+    fprintf(stderr, "Invalid usage, try: ./interp file.nal\n");
     exit(1);
   }
 
@@ -164,6 +169,14 @@ void fillWords(Program *p, FILE *fp) {
 
 void test(void) {
   Program testP;
+  int i, size;
+  char testString[MAXWORDLEN];
+  char *ROTStrings[] = {"URYYB", "ABCDEFG", "JKLM", "hello",
+                                  "While9", "123", "09812jkl"};
+  char *decodedStrings[] = {"HELLO", "NOPQRST", "WXYZ", "uryyb",
+                                      "Juvyr4", "678", "54367wxy"};
+
+  freopen("TESTOUTPUT.txt", "w", stdout);
 
   printf(" INITIALISING TESTS ... \n");
   /* TEST INITPROGRAM */
@@ -190,12 +203,22 @@ void test(void) {
   assert(testP.errorState == EndERROR);
   freeProgram(&testP, MAXWORDS);
 
+  /* TEST ROTDECODE FUNCTION */
+  size = sizeof(ROTStrings)/sizeof(ROTStrings[0]);
+  for (i = 0; i < size; i++) {
+    strcpy(testString, ROTStrings[i]);
+    ROTDecode(testString);
+    assert(strcmp(testString, decodedStrings[i]) == 0);
+  }
+
   /* TEST VARIABLE/CONSTANT FUNCTIONS */
   testVarCon();
   /* TEST FORMAL GRAMMAR FUNCTIONS */
   testGrammarFunc();
 
   printf(" TESTING COMPLETE \n");
+
+  freopen("/dev/tty","w",stdout);
 }
 
 void testVarCon(void) {
@@ -623,6 +646,7 @@ void initProgram(Program *p, int maxWords) {
     p->words[i] = (char *)calloc(MAXWORDLEN, sizeof(char));
     p->words[i][0] = '\0';
   }
+  p->vars = mvm_init();
   p->errorState = PASS;
 }
 
@@ -950,14 +974,49 @@ void print(Program *p, bool *checked) {
     /* Special case only for PRINT (Not PRINTN) */
     if (strcmp(p->words[p->currWord], "\"\"") == 0) {
       p->errorState = PASS;
+      fprintf(stdout, "\n");
     }
+    if (strcon(p)) {
+      printString(p);
+      fprintf(stdout, "\n");
+    }
+    if (numcon(p)) {
+      fprintf(stdout,"%s\n", p->words[p->currWord]);
+    }
+
     *checked = TRUE;
   }
   if (strcmp(p->words[p->currWord], "PRINTN") == 0) {
     nextWord(p);
     varcon(p);
+    if (strcon(p)) {
+      printString(p);
+    }
+    if (numcon(p)) {
+      fprintf(stdout,"%s", p->words[p->currWord]);
+    }
     *checked = TRUE;
   }
+}
+
+void printString(Program *p) {
+  char *outputString, *ptr;
+  int length = strlen(p->words[p->currWord]);
+
+  ptr = p->words[p->currWord];
+  ptr++;
+  outputString = (char *)malloc(length);
+  memcpy(outputString, ptr, length - 1);
+  length = length - 2;
+  if (outputString[length] == '#') {
+    outputString[length] = '\0';
+    ROTDecode(outputString);
+    fprintf(stdout, "%s", outputString);
+  }
+  else {
+    fprintf(stdout, "%.*s", length, outputString);
+  }
+  free(outputString);
 }
 
 void rnd(Program *p, bool *checked) {
@@ -1146,10 +1205,41 @@ void nextWord(Program *p) {
   }
 }
 
+void ROTDecode(char *ROTString) {
+  int i, length = strlen(ROTString);
+  for (i = 0; i < length; i ++) {
+    if (isupper(ROTString[i])) {
+      if (ROTString[i] <= 'M') {
+        ROTString[i] = ROTString[i] + 13;
+      }
+      else if (ROTString[i] > 'M') {
+        ROTString[i] = ROTString[i] - 13;
+      }
+    }
+    else if (islower(ROTString[i])) {
+      if (ROTString[i] <= 'm') {
+        ROTString[i] = ROTString[i] + 13;
+      }
+      else if (ROTString[i] > 'm') {
+        ROTString[i] = ROTString[i] - 13;
+      }
+    }
+    else if (isdigit(ROTString[i])) {
+      if (ROTString[i] <= '4') {
+        ROTString[i] = ROTString[i] + 5;
+      }
+      else if (ROTString[i] > '4') {
+        ROTString[i] = ROTString[i] - 5;
+      }
+    }
+  }
+}
+
 void printState(Program *p) {
   switch (p->errorState) {
     case PASS:
       fprintf(stderr, "Parsed OK\n");
+      fprintf(stderr, "Interpreted OK\n");
       break;
     case StartERROR:
       fprintf(stderr, "\nERROR - Expected a '{' at word %d: '%s'\n",
@@ -1184,6 +1274,7 @@ void freeProgram(Program *p, int maxWords) {
     free(p->words[i]);
   }
   free(p->words);
+  mvm_free(&p->vars);
 }
 
 /* StartERROR = No opening bracket, could be empty array
