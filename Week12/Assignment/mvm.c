@@ -1,6 +1,3 @@
-/* THIS MVM FILE HAS BEEN MODIFIED TO INSERT VALUES BY APPENDING TO THE END OF
-// THE ARRAY */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,7 +5,7 @@
 
 #include "mvm.h"
 
-#define MAXSTRSIZE 100
+#define MAXSTRSIZE 1000
 #define MAXOUTPUTSTR 1000
 #define LISTSIZE 50
 
@@ -39,7 +36,7 @@ int mvm_size(mvm* m) {
 
 /* Insert one key/value pair */
 void mvm_insert(mvm* m, char* key, char* data) {
-  mvmcell* cell = (mvmcell *)calloc(1, sizeof(mvmcell)), *ptr;
+  mvmcell* cell = (mvmcell *)calloc(1, sizeof(mvmcell));
   if (m == NULL || key == NULL || data == NULL) {
     free(cell);
   }
@@ -48,16 +45,8 @@ void mvm_insert(mvm* m, char* key, char* data) {
     strcpy(cell->key, key);
     cell->data = (char *)malloc(sizeof(char)*MAXSTRSIZE);
     strcpy(cell->data, data);
-    if (m->head == NULL) {
-      m->head = cell;
-    }
-    else {
-      ptr = m->head;
-      while (ptr->next != NULL) {
-        ptr = ptr->next;
-      }
-      ptr->next = cell;
-    }
+    cell->next = m->head;
+    m->head = cell;
     (m->numkeys)++;
   }
 }

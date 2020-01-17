@@ -9,6 +9,8 @@ Can I change mvm.c or will it cause errors (ASK NEILL)
 
 
 strcon doesn't test if single quotes are used - still fails but should it return error message?
+set doesn't need to test for re-assigned variable - mvm searching returns the latest assigned value
+
 All variable/constant functions were tested independently to check that they
 returned the correct result, and then tested properly through varcon to check that
 they returned syntax errors if the input was invalid - this couldn't be done
@@ -20,3 +22,7 @@ All other aspects of mvm.c remain the same except for insertion order, so this w
 tested to make sure it was working properly. All other mvm.c functions were tested in
 testmvm.c prior. ( I realise this makes mvm.c have O(n) insertion complexity,
 but it was the easiest way of modifying to fit the current task)
+
+All testing was designed so that test cases can simply be edited at the top of the
+test function, and then the below testing is automatic and simply iterates through
+the test cases and expected results to see if they match up.
