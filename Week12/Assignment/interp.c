@@ -88,6 +88,7 @@ int main(int argc, char** argv) {
 
   printState(&p);
 
+  mvm_free(&p.vars);
   freeProgram(&p, maxSize);
   fclose(fp);
 
@@ -399,11 +400,12 @@ void testGrammarFunc(void) {
   char fileTests[][MAXWORDLEN] = {"\"WOWeee.txt\"", "\"file19n123.nal\"", "#WOW.TXT#", "##"};
   int fileErrorStates[] = {FileERROR, FileERROR, FileERROR, SyntaxERROR};
 
+  /*
   char inputStrTests1[][MAXWORDLEN] = {"$C", "$STRVAR", "VAR1"};
   char inputStrTests2[][MAXWORDLEN] = {"$STRVAR", "$TEST", "VAR2"};
   int inputStrErrorStates[] = {PASS, PASS, SyntaxERROR};
   char inputNumTests[][MAXWORDLEN] = {"%VAR", "TEST"};
-  int inputNumErrorStates[] = {PASS, SyntaxERROR};
+  int inputNumErrorStates[] = {PASS, SyntaxERROR};*/
 
   char ifcondTests1[][MAXWORDLEN] = {"\"Hello\"", "$ABC", "%D", "19.07", "#YUI#",
                                     "\"hey", "15.3", "\"NINE\""};
@@ -509,7 +511,7 @@ void testGrammarFunc(void) {
   assert(testP.errorState == Abort);
   freeProgram(&testP, MAXWORDS);
 
-  /* INPUT FUNCTION TESTS */
+  /* INPUT FUNCTION TESTS
   initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "IN2STR");
@@ -536,7 +538,7 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == inputNumErrorStates[i]);
   }
-  freeProgram(&testP, MAXWORDS);
+  freeProgram(&testP, MAXWORDS);*/
 
   /* IFCOND FUNCTION TESTS */
   initProgram(&testP, MAXWORDS);
@@ -823,7 +825,7 @@ void instruct(Program *p) {
 /* ALL INSTRUCTION FUNCTIONS */
 
 void file(Program *p, bool *checked) {
-  char *fileStr;
+  char *fileStr, *printstr;
   FILE *fp;
   int maxWords;
   Program newP;
@@ -845,6 +847,11 @@ void file(Program *p, bool *checked) {
       rewind(fp);
       initProgram(&newP, maxWords);
       fillWords(&newP, fp);
+      newP.vars->head = p->vars->head;
+      printstr = mvm_print(newP.vars);
+      fprintf(stderr, "%s\n", printstr);
+      printstr = mvm_print(p->vars);
+      fprintf(stderr, "%s\n", printstr);
       prog(&newP);
       freeProgram(&newP, maxWords);
       fclose(fp);
@@ -869,6 +876,7 @@ void abortEX(Program *p, bool *checked) {
 }
 
 void input(Program *p, bool *checked) {
+  char key1[MAXWORDLEN], key2[MAXWORDLEN], userInput1[MAXWORDLEN], userInput2[MAXWORDLEN];
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
@@ -878,12 +886,24 @@ void input(Program *p, bool *checked) {
     if (strcmp(p->words[p->currWord], "(") == 0) {
       nextWord(p);
       if (strvar(p)) {
+        strcpy(key1, p->words[p->currWord]);
         nextWord(p);
         if (strcmp(p->words[p->currWord], ",") == 0) {
           nextWord(p);
           if (strvar(p)) {
+            strcpy(key2, p->words[p->currWord]);
             nextWord(p);
             if (strcmp(p->words[p->currWord], ")") == 0) {
+              /*
+              if (fgets(userInput, MAXWORDLEN, stdin)) {
+                    userInput[strcspn(name, "\n")] = 0;
+
+                }
+              */
+              scanf("%99s", userInput1);
+              scanf("%99s", userInput2);
+              mvm_insert(p->vars, key1, userInput1);
+              mvm_insert(p->vars, key2, userInput2);
               *checked = TRUE;
               return;
             }
@@ -899,8 +919,11 @@ void input(Program *p, bool *checked) {
     if (strcmp(p->words[p->currWord], "(") == 0) {
       nextWord(p);
       if (numvar(p)) {
+        strcpy(key1, p->words[p->currWord]);
         nextWord(p);
         if (strcmp(p->words[p->currWord], ")") == 0) {
+          scanf("%99s", userInput1);
+          mvm_insert(p->vars, key1, userInput1);
           *checked = TRUE;
           return;
         }
@@ -1535,9 +1558,9 @@ void printState(Program *p) {
       fprintf(stderr, "\nERROR - Expected a '}' at word %d: %s\n",
               p->currWord, p->words[p->currWord - 1]);
       break;
-    case Abort:
+    case Abort:/*
       fprintf(stderr, "\nUser specified ABORT at word %d: %s\n",
-              p->currWord, p->words[p->currWord - 1]);
+              p->currWord, p->words[p->currWord - 1]);*/
       break;
   }
 }
@@ -1548,7 +1571,6 @@ void freeProgram(Program *p, int maxWords) {
     free(p->words[i]);
   }
   free(p->words);
-  mvm_free(&p->vars);
 }
 
 /* StartERROR = No opening bracket, could be empty array

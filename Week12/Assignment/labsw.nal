@@ -7,7 +7,7 @@
    IFEQUAL ( $WHERECHEK , "SE" ) {
       PRINT $SWCHEKSE
    }
-   
+
    IN2STR ( $A , $B )
    FILE "munge.nal"
 

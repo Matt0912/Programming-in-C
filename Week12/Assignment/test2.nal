@@ -7,8 +7,4 @@
       PRINT #Uryyb Jbeyq!#
    }
 
-   IFGREATER ( $A , "Neil" ) {
-      PRINT 
-   }
-
 }
