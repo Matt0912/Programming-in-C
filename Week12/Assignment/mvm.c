@@ -5,7 +5,7 @@
 
 #include "mvm.h"
 
-#define MAXSTRSIZE 1000
+#define MAXSTRSIZE 800
 #define MAXOUTPUTSTR 1000
 #define LISTSIZE 50
 
@@ -41,9 +41,13 @@ void mvm_insert(mvm* m, char* key, char* data) {
     free(cell);
   }
   else {
-    cell->key = (char *)malloc(sizeof(char)*MAXSTRSIZE);
+    if ((cell->key = (char *)calloc(sizeof(char),MAXSTRSIZE)) == NULL) {
+      ON_ERROR("FAILED TO ALLOCATE MEMORY FOR KEY\n");
+    }
     strcpy(cell->key, key);
-    cell->data = (char *)malloc(sizeof(char)*MAXSTRSIZE);
+    if ((cell->data = (char *)calloc(sizeof(char),MAXSTRSIZE)) == NULL) {
+      ON_ERROR("FAILED TO ALLOCATE MEMORY FOR DATA\n");
+    }
     strcpy(cell->data, data);
     cell->next = m->head;
     m->head = cell;
