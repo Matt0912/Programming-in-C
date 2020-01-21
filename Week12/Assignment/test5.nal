@@ -4,7 +4,7 @@
    RND ( %A )
    PRINT %A
    INC ( %C )
-   IFGREATER ( %C , 1000 ) {
+   IFGREATER ( %C , 9 ) {
       ABORT
    }
    JUMP 4

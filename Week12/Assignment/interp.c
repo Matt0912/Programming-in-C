@@ -411,7 +411,7 @@ void testGrammarFunc(void) {
                                     "\"hey", "15.3", "\"NINE\""};
   char ifcondTests2[][MAXWORDLEN] = {"$ABC", "\"Hello\"", "19.07", "%D", "$ABC",
                                     "\"hey", "\"NINE\"", "15.3"};
-  int ifcondErrorStates[] = {PASS, PASS, PASS, PASS, PASS, SyntaxERROR,
+  int ifcondErrorStates[] = {PASS, PASS, PASS, PASS, PASS, StartERROR,
                              CompERROR, CompERROR};
 
   char incNums[][MAXWORDLEN] = {"15", "432.1", "-10", "67.0", "23", "0"};
@@ -825,7 +825,7 @@ void instruct(Program *p) {
 /* ALL INSTRUCTION FUNCTIONS */
 
 void file(Program *p, bool *checked) {
-  char *fileStr, *printstr;
+  char *fileStr;
   FILE *fp;
   int maxWords;
   Program newP;
@@ -847,11 +847,8 @@ void file(Program *p, bool *checked) {
       rewind(fp);
       initProgram(&newP, maxWords);
       fillWords(&newP, fp);
-      newP.vars->head = p->vars->head;
-      printstr = mvm_print(newP.vars);
-      fprintf(stderr, "%s\n", printstr);
-      printstr = mvm_print(p->vars);
-      fprintf(stderr, "%s\n", printstr);
+      newP.vars = p->vars;/*
+      newP.vars->numkeys = mvm_size(p->vars);*/
       prog(&newP);
       freeProgram(&newP, maxWords);
       fclose(fp);
@@ -877,6 +874,7 @@ void abortEX(Program *p, bool *checked) {
 
 void input(Program *p, bool *checked) {
   char key1[MAXWORDLEN], key2[MAXWORDLEN], userInput1[MAXWORDLEN], userInput2[MAXWORDLEN];
+  char data1[MAXWORDLEN], data2[MAXWORDLEN];
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
@@ -900,10 +898,12 @@ void input(Program *p, bool *checked) {
 
                 }
               */
-              scanf("%99s", userInput1);
-              scanf("%99s", userInput2);
-              mvm_insert(p->vars, key1, userInput1);
-              mvm_insert(p->vars, key2, userInput2);
+              scanf("%97s", userInput1);
+              scanf("%97s", userInput2);
+              sprintf(data1, "\"%s\"", userInput1);
+              sprintf(data2, "\"%s\"", userInput2);
+              mvm_insert(p->vars, key1, data1);
+              mvm_insert(p->vars, key2, data2);
               *checked = TRUE;
               return;
             }
@@ -934,12 +934,15 @@ void input(Program *p, bool *checked) {
 }
 
 void ifcond(Program *p, bool *checked) {
+  int count = 0;
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
   }
 
-  if (strcmp(p->words[p->currWord], "IFEQUAL") == 0) {
+  if (strcmp(p->words[p->currWord], "IFEQUAL") == 0) {/*
+    printstr = mvm_print(p->vars);
+    fprintf(stderr, "%s\n", printstr);*/
     nextWord(p);
     if (checkCond(p) == Equal) {
       nextWord(p);
@@ -954,8 +957,22 @@ void ifcond(Program *p, bool *checked) {
       }
     }
     else {
-      while (strcmp(p->words[p->currWord], "}") != 0) {
-        nextWord(p);
+      nextWord(p);
+      if (strcmp(p->words[p->currWord], "{") == 0) {
+        count = 1;
+        while (count > 0 && p->errorState == PASS) {
+          nextWord(p);
+          if (strcmp(p->words[p->currWord], "{") == 0) {
+            count++;
+          }
+          if (strcmp(p->words[p->currWord], "}") == 0) {
+            count--;
+          }
+        }
+      }
+      else {
+        p->errorState = StartERROR;
+        return;
       }
       *checked = TRUE;
     }
@@ -976,8 +993,22 @@ void ifcond(Program *p, bool *checked) {
       }
     }
     else {
-      while (strcmp(p->words[p->currWord], "}") != 0) {
-        nextWord(p);
+      nextWord(p);
+      if (strcmp(p->words[p->currWord], "{") == 0) {
+        count = 1;
+        while (count > 0 && p->errorState == PASS) {
+          nextWord(p);
+          if (strcmp(p->words[p->currWord], "{") == 0) {
+            count++;
+          }
+          if (strcmp(p->words[p->currWord], "}") == 0) {
+            count--;
+          }
+        }
+      }
+      else {
+        p->errorState = StartERROR;
+        return;
       }
       *checked = TRUE;
     }
@@ -1254,6 +1285,7 @@ void printVarCon(Program *p) {
     if (mvm_size(p->vars) > 0) {
       output = printVars(p);
       if (output == NULL) {
+        fprintf(stderr, "here is the issue\n");
         p->errorState = VariableERROR;
         return;
       }
@@ -1288,8 +1320,11 @@ char* formatStrcon(char *currentWord) {
 char *printVars(Program *p) {
   char *data;
   if (strvar(p)) {
-    if (mvm_size(p->vars) > 0) {
-      data = mvm_search(p->vars, p->words[p->currWord]);
+    if (mvm_size(p->vars) > 0) {/*
+      data = mvm_print(p->vars);
+      fprintf(stderr, "%s\n", data);*/
+      data = mvm_search(p->vars, p->words[p->currWord]);/*
+      fprintf(stderr, "%s: %s\n", p->words[p->currWord], data);*/
       if (data != NULL) {
         return formatStrcon(data);
       }
@@ -1474,7 +1509,8 @@ bool numcon(Program *p) {
 /* Function to move to next word */
 void nextWord(Program *p) {
   (p->currWord)++;/*
-  printf("%s\n", p->words[p->currWord]); */
+  fprintf(stderr, "%s\n", p->words[p->currWord]);
+  fprintf(stderr, "%d\n", p->errorState);*/
   if (p->words[p->currWord][0] == '\0') {
     p->errorState = EndERROR;
   }

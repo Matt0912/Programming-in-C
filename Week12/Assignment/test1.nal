@@ -1,23 +1,5 @@
 {
 
    PRINT "Hello World! From test1"
-   %N = 1
-   $K = "HI"
-   INC ( %N )
-   %H = 189.0
-   %HI = -200
-   INC ( %N )
-   $HELLO = $K
-   $MAYBE = $HELLO
-
-
-   PRINT %N
-   INC ( %N )
-   PRINT %N
-
-
-
-
-
 
 }
