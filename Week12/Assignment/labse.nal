@@ -14,7 +14,7 @@
    IFEQUAL ( $WHERECHEK , "SW" ) {
       PRINT $BIKESOLO
    }
-   
+
    IN2STR ( $A , $B )
    FILE "munge.nal"
 
@@ -42,11 +42,11 @@
             PRINT ""
             PRINT $FOYER
             PRINT ""
-            FILE "escape211.nal"
+            ABORT
          }
       }
    }
- 
+
    IFEQUAL ( $VA , "MOVE" ) {
       PRINT "You can't go that way ?"
       JUMP 43

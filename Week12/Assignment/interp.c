@@ -118,6 +118,7 @@ FILE* readFile(int argc, char** argv, int *maxWords) {
   return fp;
 }
 
+/* Calloc currentword as well, and free everything later */
 void fillWords(Program *p, FILE *fp) {
   int i = 0, length, currentSize = MAXWORDLEN;
   char currentWord[MAXWORDLEN];
@@ -214,6 +215,7 @@ void test(void) {
   nextWord(&testP);
   nextWord(&testP);
   assert(testP.errorState == EndERROR);
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* TEST ROTDECODE FUNCTION */
@@ -286,6 +288,7 @@ void testVarCon(void) {
     assert(testP.errorState == strvarError[i]);
     nextWord(&testP);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* TEST NUMVAR */
@@ -298,6 +301,7 @@ void testVarCon(void) {
     assert(testP.errorState == numvarError[i]);
     nextWord(&testP);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* TEST STRCON */
@@ -310,6 +314,7 @@ void testVarCon(void) {
     assert(testP.errorState == strconError[i]);
     nextWord(&testP);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* TEST NUMCON */
@@ -322,6 +327,7 @@ void testVarCon(void) {
     assert(testP.errorState == numconError[i]);
     nextWord(&testP);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* TEST VAR  - All tests for strvar/numvar should pass */
@@ -387,6 +393,7 @@ void testVarCon(void) {
     nextWord(&testP);
     j++;
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
 }
@@ -483,6 +490,7 @@ void testGrammarFunc(void) {
   strcpy(testP.words[1], "}");
   prog(&testP);
   assert(testP.errorState == PASS);
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* INSTRUCT FUNCTIONS */
@@ -500,6 +508,7 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == fileErrorStates[i]);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* ABORT FUNCTION TEST */
@@ -509,6 +518,7 @@ void testGrammarFunc(void) {
   strcpy(testP.words[2], "}");
   prog(&testP);
   assert(testP.errorState == Abort);
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* INPUT FUNCTION TESTS
@@ -568,6 +578,7 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == ifcondErrorStates[i]);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* INC FUNCTION TESTS */
@@ -591,6 +602,7 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == incErrorStates[i]);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* SET FUNCTION TESTS */
@@ -622,6 +634,7 @@ void testGrammarFunc(void) {
   strcpy(testP.words[3], setTestsSTR2[0]);
   prog(&testP);
   assert(testP.errorState == SyntaxERROR);
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
 
@@ -641,6 +654,7 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == jumpErrorStates[i]);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* PRINT FUNCTION TESTS*/
@@ -661,6 +675,7 @@ void testGrammarFunc(void) {
     }
   }
   assert(testP.errorState == SyntaxERROR);
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
   fprintf(stdout, "===================\n");
 
@@ -694,6 +709,7 @@ void testGrammarFunc(void) {
       assert(strcmp(testStr, printVarsOutputs2[i]) == 0);
     }
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
 
@@ -716,6 +732,7 @@ void testGrammarFunc(void) {
       assert(num >= 0 && num < 100);
     }
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
   /* TEST FUNCTIONERROR */
@@ -730,6 +747,7 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == FunctionERROR);
   }
+  mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
 }
@@ -847,8 +865,8 @@ void file(Program *p, bool *checked) {
       rewind(fp);
       initProgram(&newP, maxWords);
       fillWords(&newP, fp);
-      newP.vars = p->vars;/*
-      newP.vars->numkeys = mvm_size(p->vars);*/
+      mvm_free(&newP.vars);
+      newP.vars = p->vars;
       prog(&newP);
       freeProgram(&newP, maxWords);
       fclose(fp);
@@ -1285,7 +1303,6 @@ void printVarCon(Program *p) {
     if (mvm_size(p->vars) > 0) {
       output = printVars(p);
       if (output == NULL) {
-        fprintf(stderr, "here is the issue\n");
         p->errorState = VariableERROR;
         return;
       }
@@ -1594,9 +1611,8 @@ void printState(Program *p) {
       fprintf(stderr, "\nERROR - Expected a '}' at word %d: %s\n",
               p->currWord, p->words[p->currWord - 1]);
       break;
-    case Abort:/*
-      fprintf(stderr, "\nUser specified ABORT at word %d: %s\n",
-              p->currWord, p->words[p->currWord - 1]);*/
+    case Abort:
+      fprintf(stderr, "Interpreted OK (ABORT called)\n");
       break;
   }
 }

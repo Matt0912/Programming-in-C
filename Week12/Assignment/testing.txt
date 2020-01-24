@@ -5,7 +5,6 @@ Want to keep the testing in the initial file so it is tested each time a modific
 is made.
 
 May need to put this in another program - test parse and test interp (ASK NEILL)
-Can I change mvm.c or will it cause errors (ASK NEILL)
 
 
 strcon doesn't test if single quotes are used - still fails but should it return error message?
