@@ -1,51 +1,37 @@
-To allow for the tests to run and not print errors every time, I created enumerated
-error codes which cause every function to return as soon as the error code is
-changed from PASS. This allows me to test if the program detects the correct problem.
-Want to keep the testing in the initial file so it is tested each time a modification
-is made.
+As shown in the makefile, whenever 'make all' is called, it makes both the parser and interpreter, but also
+runs all the function testing within the program, so that every time a change is made to parse or interp, it
+is checked against all of the test cases that I've written in the program. However, the testing doesn't slow down
+interp or parse because it is only called when they are made. Further testing through 'make test' is
+still available, which runs all of the testX.nal files and also checks my function testing files
+for memory leaks.
 
-May need to put this in another program - test parse and test interp (ASK NEILL)
+The testing approach I took was to test as I went along, allowing extra test cases to be added as and when I
+thought of them. To make this easier, I wrote all my test cases at the top of each function, then iterated through
+them, almost automating the process, and then if I came across any more cases that should be tested, I could simply
+add them in with the expected result. To allow for the tests to try and break functions to check they give the
+correct error, I created an errorState variable for the program with enumerated error codes so that I could
+check that given a certain input, the function would produce the correct error. This helped massively with
+debugging because I could print out the error state and see what was happening within the program, but the
+main purpose of this was to provide the user with more comprehensive information as to why their program wasn't
+working. To prevent the program from continuing once an error has occurred, a catch was added to the beginning
+of every function to 'return' if the errorstate wasn't 'PASS'. Since parsing and interpreting needed different
+test cases, I decided to split them in to 2 functions to allow for better readability (instead of adding
+ifdefs all throughout the testing functions).
 
+The hardest functions to test were the ones which required inputs from files, so I created new files to
+write to and then subsequently read in, checking that they read them in correctly. The main limitation
+with this method is that if the user has a file with the same filename as the test file, I made sure it won't
+get overwritten but the tests will fail and it may not be clear to the user why.
 
+The functions which I couldn't test using test functions were mostly the ones which used fprintf. A
+possible idea I had for testing these was to change the output stream to a file during the testing, then read in
+that file and check that it is as expected, but I couldn't explore this due to time constraints. Escape211 I was
+able to test for memory leaks by adding an ABORT at the end, but this requires human input so I couldn't put it
+in the makefile.
 
+Some functions are quite large but nature of assignment
 
-All variable/constant functions were tested independently to check that they
-returned the correct result, and then tested properly through varcon to check that
-they returned syntax errors if the input was invalid - this couldn't be done
-using the individual functions because triggering a syntax error just because
-something wasn't a string constant would prevent it being evaluated as a number
-constant (can only be tested through varcon)
-
-
-Changed make all to make parser, tester and 2 test files, and run them for the standard tests
-This is because every time a change is made, those tests should be run, but otherwise
-the test files aren't used when normally running, and any extra error checking can be
-done using make test
-
-Testing limitation can be if the filenames of the files I create to test already exist
-Code has a failsafe to prevent overwriting existing files, but later tests will fail
-because of this and the user may not be able to find the reason
-
-Wanted to test input more thoroughly but would have resulted in lots of ifdefs and cases
-inside the code, making it less readable
-Scanf designed to prevent any input greater than MAXWORDLEN
-
-Parsing and interpreting tests could be done in the same function using ifdefs, but
-this method seems cleaner because separate testcases need to be used for each
-program, and extra test cases can now be easily added to each
-
-%E = 17.8
-%V = 90
-$S = #WOW.txt#
-PRINT %E
-PRINT $S
-PRINTN %V
-PRINT ""
-
-
-
-  /* Redirect stdout to a new test file */
-  freopen("TESTOUTPUT.txt", "w", stdout);
-
-/* Once testing is done, restore stdout */
-freopen("/dev/tty","w",stdout);
+If I could change anything, I would reformat the strvar/numvar/strcon/numcon functions to allow them to check
+individual words instead of being passed a program, making testing easier and making them more versatile. This
+is quite time consuming to rectify now because a lot of testing is built on top of these functions catching error
+states, which they aren't able to do without passing them a program.

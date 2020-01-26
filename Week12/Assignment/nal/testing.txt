@@ -25,6 +25,13 @@ get overwritten but the tests will fail and it may not be clear to the user why.
 
 The functions which I couldn't test using test functions were mostly the ones which used fprintf. A
 possible idea I had for testing these was to change the output stream to a file during the testing, then read in
-that file and check that it is as expected, but I couldn't explore this due to time constraints.
+that file and check that it is as expected, but I couldn't explore this due to time constraints. Escape211 I was
+able to test for memory leaks by adding an ABORT at the end, but this requires human input so I couldn't put it
+in the makefile.
 
 Some functions are quite large but nature of assignment
+
+If I could change anything, I would reformat the strvar/numvar/strcon/numcon functions to allow them to check
+individual words instead of being passed a program, making testing easier and making them more versatile. This
+is quite time consuming to rectify now because a lot of testing is built on top of these functions catching error
+states, which they aren't able to do without passing them a program.

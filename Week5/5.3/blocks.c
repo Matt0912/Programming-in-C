@@ -2,64 +2,56 @@
 #include <stdlib.h>
 #include "neillsdl2.h"
 
-#define RECTSIZE 300
+#define RECTSIZE 20
 #define MILLISECONDDELAY 20
-#define SIZE 3
+
+typedef enum bool {false, true} bool;
+void keyboard(bool KEYS[1000], SDL_Simplewin *sw);
 
 int main(void)
 {
-   int x, y, i;
+   bool KEYS[1000];
    SDL_Simplewin sw;
    SDL_Rect rectangle;
-   char userInput[] = "1243 5678";
-   fntrow fontdata[FNTCHARS][FNTHEIGHT];
-
+   int i;
    rectangle.w = RECTSIZE;
    rectangle.h = RECTSIZE;
 
-   Neill_SDL_ReadFont(fontdata, "mode7.fnt");
+   for(i = 0; i < 322; i++) {
+     KEYS[i] = false;
+   }
 
    Neill_SDL_Init(&sw);
    do{
+
       SDL_Delay(MILLISECONDDELAY);
+      keyboard(KEYS, &sw);
 
       /* Choose a random colour, a mixture of red, green and blue. */
-      Neill_SDL_SetDrawColour(&sw, 255,255,255);
+      Neill_SDL_SetDrawColour(&sw, rand()%SDL_8BITCOLOUR,
+                                   rand()%SDL_8BITCOLOUR,
+                                   rand()%SDL_8BITCOLOUR);
 
-      /* Filled Rectangle, fixed size, random position
-      rectangle.x = rand()%(WWIDTH-RECTSIZE);
-      rectangle.y = rand()%(WHEIGHT-RECTSIZE);
-      SDL_RenderFillRect(sw.renderer, &rectangle); */
+      /* Filled Rectangle, fixed size, random position */
+      if(KEYS[SDLK_h]) {
+        rectangle.x = rand()%(WWIDTH-RECTSIZE);
+        rectangle.y = rand()%(WHEIGHT-RECTSIZE);
+        SDL_RenderFillRect(sw.renderer, &rectangle);
+      }
 
       /* Unfilled Rectangle, fixed size, random position */
-      for (y = 0; y < SIZE; y++) {
-        for (x = 0; x < SIZE; x++) {
-          rectangle.x = RECTSIZE * x;
-          rectangle.y = RECTSIZE * y;
-          SDL_RenderDrawRect(sw.renderer, &rectangle);
-        }
+      if(KEYS[SDLK_r]) {
+        rectangle.x = rand()%(WWIDTH-RECTSIZE);
+        rectangle.y = rand()%(WHEIGHT-RECTSIZE);
+        SDL_RenderDrawRect(sw.renderer, &rectangle);
       }
-
-      i = 0;
-      while (userInput[i]){
-        for (y = 0; y < SIZE; y++) {
-          for (x = 0; x < SIZE; x++) {
-            Neill_SDL_DrawChar(&sw, fontdata, userInput[i],
-              RECTSIZE/2 + RECTSIZE * x, RECTSIZE/2 + RECTSIZE * y);
-            i++;
-          }
-        }
-      }
-
-
-
-
 
       Neill_SDL_UpdateScreen(&sw);
 
       /* Has anyone pressed ESC or killed the SDL window ?
-         Must be called frequently - it's the only way of escaping  */
-      Neill_SDL_Events(&sw);
+         Must be called frequently - it's the only way of escaping void SDL_KeyInput() */
+
+
 
    }while(!sw.finished);
 
@@ -69,4 +61,26 @@ int main(void)
 
    return 0;
 
+}
+
+
+
+void keyboard(bool KEYS[1000], SDL_Simplewin *sw) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_KEYDOWN:
+                if (event.key.keysym.sym==SDLK_ESCAPE) {
+                  sw->finished = 1;
+                  break;
+                }
+                KEYS[event.key.keysym.sym] = true;
+                break;
+            case SDL_KEYUP:
+                KEYS[event.key.keysym.sym] = false;
+                break;
+            default:
+                break;
+          }
+      }
 }
