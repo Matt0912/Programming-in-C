@@ -659,16 +659,6 @@ void instruct(Program *p) {
   if (p->errorState != PASS) {
     return;
   }
-  /* If instruct is called, every function is tested to see if it matches
-  // Nothing is returned from each function, so no way of knowing if the
-  // function has been called correctly - unless we check if the program
-  // has moved on to the next word:
-  // If it moves to the next word WITHOUT an errorState, function has been
-  // called correctly and loop exits
-  // If it moves to next word but has invalid future syntax, the functions
-  // will catch it and change the error state, exiting the loop
-  // If it goes through the whole while loop without going to the next word,
-  // none of the functions have been called and a FunctionERROR is thrown */
   if (checked == FALSE) {
     file(p, &checked);
   }
@@ -776,7 +766,6 @@ void ifcond(Program *p, bool *checked) {
   if (p->errorState != PASS) {
     return;
   }
-
   /* No conditional clause for ifequal because checking grammer */
   /* In interpreter, ifequal will return TRUE/FALSE */
   if (strcmp(p->words[p->currWord], "IFEQUAL") == 0) {

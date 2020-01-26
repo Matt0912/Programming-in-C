@@ -7,88 +7,28 @@
 
 /* Want to be able to have resizeable arrays of any data type */
 #include "mvm.h"
-
-#define MAXWORDLEN 100
-#define MAXWORDS 50
-#define FLOAT_INIT_VAL 1000000000000
-
-enum ErrorCodes {StartERROR = 101, SyntaxERROR = 102, OverflowERROR = 103,
-                 FunctionERROR = 104, VariableERROR = 105, FileERROR = 106,
-                 CompERROR = 107, EndERROR = 108, Abort = 200};
-enum CompStates {Greater = 1, Equal = 0, Less = -1, Invalid = -100};
-enum check {FAIL, PASS};
-typedef enum {FALSE, TRUE} bool;
-
-typedef struct prog {
-  char **words;
-  int currWord;
-  int totalWords;
-  mvm *vars;
-  int errorState;
-} Program;
-
-FILE* readFile(int argc, char** argv, int *maxWords);
-/* TESTED */ void initProgram(Program *p, int maxWords);
-void fillWords(Program *p, FILE *fp);
-
-void prog(Program *p);
-void instrs(Program *p);
-void instruct(Program *p);
-/* All possible instructions */
-void file(Program *p, bool *checked);
-void abortEX(Program *p, bool *checked);
-void input(Program *p, bool *checked);
-void ifcond(Program *p, bool *checked);
-/* TESTED */ void inc(Program *p, bool *checked);
-/* TESTED */ void set(Program *p, bool *checked);
-/* TESTED */ void jump(Program *p, bool *checked);
-void print(Program *p, bool *checked);
-void rnd(Program *p, bool *checked);
-/* All variables/constants */
-/* TESTED */ void varcon(Program *p);
-/* TESTED */ bool var(Program *p);
-/* TESTED */ bool con(Program *p);
-/* TESTED */ bool strvar(Program *p);
-/* TESTED */ bool numvar(Program *p);
-/* TESTED */ bool strcon(Program *p);
-/* TESTED */ bool numcon(Program *p);
-
-int checkCond(Program *p);
-int compCons(char *strcon1, float numcon1, char *strcon2, float numcon2);
-
-void printVarCon(Program *p);
-/* TESTED */ char* formatStrcon(char *currentWord);
-/* TESTED */ char *printVars(Program *p);
-
-/* TESTED */ void ROTDecode(char *ROTString);
-/* TESTED */ void nextWord(Program *p);
-bool isInteger(char *number);
-void printState(Program *p);
-void freeProgram(Program *p, int maxWords);
-
-void test(void);
-void testVarCon(void);
-void testGrammarFunc(void);
+#include "nal.h"
 
 int main(int argc, char** argv) {
   Program p;
   int maxSize;
   FILE *fp;
   srand(time(NULL));
+  #ifdef TEST
   test();
+  exit(0);
+  #endif
 
   fp = readFile(argc, argv, &maxSize);
   initProgram(&p, maxSize);
   fillWords(&p, fp);
 
   prog(&p);
-
   printState(&p);
 
   mvm_free(&p.vars);
   freeProgram(&p, maxSize);
   fclose(fp);
-
   return 0;
 }
 
@@ -115,6 +55,7 @@ FILE* readFile(int argc, char** argv, int *maxWords) {
   return fp;
 }
 
+/* Calloc currentword as well, and free everything later */
 void fillWords(Program *p, FILE *fp) {
   int i = 0, length, currentSize = MAXWORDLEN;
   char currentWord[MAXWORDLEN];
@@ -177,18 +118,39 @@ void fillWords(Program *p, FILE *fp) {
 }
 
 void test(void) {
+
+  #ifdef INTERP
+  printf(" INITIALISING INTERPRETER TESTS ... \n");
+  #else
+  printf(" INITIALISING PARSER TESTS ... \n");
+  #endif
+
+  /* TEST FORMAL GRAMMAR FUNCTIONS - DIFFERENT FOR PARSE & INTERP */
+  #ifdef INTERP
+  interpTestFunc();
+  #else
+  /* TEST BASIC FUNCTIONS */
+  basicFuncTest();
+  /* TEST VARIABLE/CONSTANT FUNCTIONS */
+  testVarCon();
+  parseTestFunc();
+  #endif
+
+  printf(" TESTING COMPLETE \n");
+
+}
+
+void basicFuncTest(void) {
   Program testP;
-  int i, size;
+  int i, size, maxWords;
   char testString[MAXWORDLEN];
   char *ROTStrings[] = {"URYYB", "ABCDEFG", "JKLM", "hello",
                         "While9", "123", "09812jkl"};
   char *decodedStrings[] = {"HELLO", "NOPQRST", "WXYZ", "uryyb",
                             "Juvyr4", "678", "54367wxy"};
+  FILE *fp;
+  char *argv[] = {"./parse", "ReadfileTesting.txt"};
 
-  /* Redirect stdout to a new test file */
-  freopen("TESTOUTPUT.txt", "w", stdout);
-
-  printf(" INITIALISING TESTS ... \n");
   /* TEST INITPROGRAM */
   initProgram(&testP, MAXWORDS);
   assert(testP.currWord == 0);
@@ -222,15 +184,46 @@ void test(void) {
     assert(strcmp(testString, decodedStrings[i]) == 0);
   }
 
-  /* TEST VARIABLE/CONSTANT FUNCTIONS */
-  testVarCon();
-  /* TEST FORMAL GRAMMAR FUNCTIONS */
-  testGrammarFunc();
+  /* TEST ISPOSINTEGER */
+  assert(isPosInteger("12") == TRUE);
+  assert(isPosInteger("120019092") == TRUE);
+  assert(isPosInteger("0") == TRUE);
+  assert(isPosInteger("1.2") == FALSE);
+  assert(isPosInteger("12.091") == FALSE);
+  assert(isPosInteger("-1") == FALSE);
+  assert(isPosInteger("-12.091") == FALSE);
 
-  printf(" TESTING COMPLETE \n");
+  /* TEST READFILE */
+  /* If statement checks for if filename already exists to prevent overwriting*/
+  /* If it does already exist, TESTS WILL NOT PASS */
+  if ((fp = fopen(argv[1], "r")) == NULL) {
+    fp = fopen(argv[1], "w");
+    fprintf(fp, "{ "
+                "PRINT \"Hello World!\" "
+                "%%A = 13.452 "
+                "$K = #ROT18 String should be one word#"
+                " }");
+    fclose(fp);
+  }
+  fp = readFile(2, argv, &maxWords);
+  assert(maxWords == 75);
 
-  /* Once testing is done, restore stdout */
-  freopen("/dev/tty","w",stdout);
+  /* TEST FILLWORDS FUNCTIONS */
+  initProgram(&testP, maxWords);
+  fillWords(&testP, fp);
+  assert(strcmp(testP.words[0], "{") == 0);
+  assert(strcmp(testP.words[1], "PRINT") == 0);
+  assert(strcmp(testP.words[2], "\"Hello World!\"") == 0);
+  assert(strcmp(testP.words[3], "%A") == 0);
+  assert(strcmp(testP.words[5], "13.452") == 0);
+  assert(strcmp(testP.words[8], "#ROT18 String should be one word#") == 0);
+  assert(strcmp(testP.words[9], "}") == 0);
+  assert(testP.totalWords == 10);
+
+  mvm_free(&testP.vars);
+  freeProgram(&testP, maxWords);
+  remove(argv[1]);
+  fclose(fp);
 }
 
 void testVarCon(void) {
@@ -394,93 +387,57 @@ void testVarCon(void) {
 
 }
 
-void testGrammarFunc(void) {
+void parseTestFunc(void) {
   Program testP;
   int i, size;
-  float num;
-  char *testStr;
 
-  char fileTests[][MAXWORDLEN] = {"\"WOWeee.txt\"", "\"file19n123.nal\"", "#WOW.TXT#", "##"};
-  int fileErrorStates[] = {FileERROR, FileERROR, FileERROR, SyntaxERROR};
+  char fileTests[][MAXWORDLEN] = {"\"WOW.txt\"", "\"file1.nal\"",
+                                  "#WOW.TXT#", "##"};
+  int fileErrorStates[] = {PASS, PASS, PASS, SyntaxERROR};
 
-  /*
   char inputStrTests1[][MAXWORDLEN] = {"$C", "$STRVAR", "VAR1"};
   char inputStrTests2[][MAXWORDLEN] = {"$STRVAR", "$TEST", "VAR2"};
   int inputStrErrorStates[] = {PASS, PASS, SyntaxERROR};
   char inputNumTests[][MAXWORDLEN] = {"%VAR", "TEST"};
-  int inputNumErrorStates[] = {PASS, SyntaxERROR};*/
+  int inputNumErrorStates[] = {PASS, SyntaxERROR};
 
-  char ifcondTests1[][MAXWORDLEN] = {"\"Hello\"", "$ABC", "%D", "19.07", "#YUI#",
-                                    "\"hey", "15.3", "\"NINE\""};
-  char ifcondTests2[][MAXWORDLEN] = {"$ABC", "\"Hello\"", "19.07", "%D", "$ABC",
-                                    "\"hey", "\"NINE\"", "15.3"};
-  int ifcondErrorStates[] = {PASS, PASS, PASS, PASS, PASS, StartERROR,
-                             CompERROR, CompERROR};
+  char ifcondTests[][MAXWORDLEN] = {"%D", "$ABC", "\"Hello\"", "19.07",
+                                    "#YUI#", "\"hey"};
+  int ifcondErrorStates[] = {PASS, PASS, PASS, PASS, PASS, StartERROR};
 
-  /********************************* INC ***********************************/
-  char incNums[][MAXWORDLEN] = {"15", "432.1", "-10", "67.0", "23", "0"};
-  char incNumsResults[][MAXWORDLEN] = {"16", "433.10", "-9.00", "68.00", "24", "1"};
-  char incTests[][MAXWORDLEN] = {"%A", "%C ", "%", "$ABC", "93", ".%K", "%R1"};
-  int incErrorStates[] = {PASS, SyntaxERROR, SyntaxERROR, SyntaxERROR,
+  char incTests[][MAXWORDLEN] = {"%ABC", "%T", "%C ", "%", "$ABC",
+                                 "93", ".%K", "%R1"};
+  int incErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR, SyntaxERROR,
                             SyntaxERROR, SyntaxERROR, SyntaxERROR};
 
-  /********************************* SET ***********************************/
-  /* All 5 arrays should be same size */
-  char setTestsSTR1[][MAXWORDLEN] = {"$A", "$STRVAR", "$D", "$D", "$ROT",
-                                     "$TEST", "$VAR", "$HI=", "$TEST"};
-  char setTestsSTR2[][MAXWORDLEN] = {"\"hi\"", "$A", "\"A A a 8\"", "\"A2\"",
-                                     "#URYYB#", "$VAR", "$VAR","$HI", "%ABC"};
-  char setTestsSTR3[][MAXWORDLEN] = {"\"hi\"", "\"hi\"", "\"A A a 8\"","\"A2\"",
-                                     "#URYYB#", "$VAR", "$VAR","$HI", "%ABC"};
-  char setTestsNUM1[][MAXWORDLEN] = {"%ABC", "%KP", "%D", "%D", "%NUM", "%NUM",
-                                     "%TEST","%HI=", "%FIN"};
-  char setTestsNUM2[][MAXWORDLEN] = {"17.3", "%ABC", "-100.5", "50", "%D",
-                                     "%TEST", "%TEST", "1.3", "$TEST"};
-  char setTestsNUM3[][MAXWORDLEN] = {"17.3", "17.3", "-100.5", "50", "50",
-                                     "%TEST", "%TEST", "1.3", "$TEST"};
-  int setErrorStates[] = {PASS, PASS, PASS, PASS, PASS, VariableERROR,
-                          VariableERROR, SyntaxERROR, SyntaxERROR};
-  /********************************* PRINTVARS *******************************/
-  /* Use settests to test printvars */
-  char printVarsOutputs1[][MAXWORDLEN] = {"hi", "hi", "A A a 8", "A2", "HELLO"};
-  char printVarsOutputs2[][MAXWORDLEN] = {"17.3", "17.3", "-100.5", "50", "50"};
+  char setTestsSTR1[][MAXWORDLEN] = {"$A", "$STRVAR", "$HI=", "$TEST"};
+  char setTestsSTR2[][MAXWORDLEN] = {"\"hi\"", "$A", "$HI", "%ABC"};
+  char setTestsNUM1[][MAXWORDLEN] = {"%ABC", "%KP", "%HI=", "%FIN"};
+  char setTestsNUM2[][MAXWORDLEN] = {"17.3", "%ABC", "1.3", "$TEST"};
+  int setErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR};
 
-  /********************************* JUMP *******************************/
-  char jumpTests[][MAXWORDLEN] = {"6", "10", "-1", "-5.5", "10.2", "19.0",
+
+  char jumpTests[][MAXWORDLEN] = {"5", "49", "0", "-1", "-5.5", "10.2", "19.0",
                                   "51", "152"};
-  int jumpErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR, SyntaxERROR,
-                           SyntaxERROR, OverflowERROR, OverflowERROR};
+  int jumpErrorStates[] = {PASS, PASS, PASS, SyntaxERROR, SyntaxERROR,
+                           SyntaxERROR, SyntaxERROR, OverflowERROR, OverflowERROR};
 
-  /***************************** FORMATSTRCON *******************************/
-  char formatStrconTests[][MAXWORDLEN] = {"\"HELLO HOW is 3v3rYTh1nG @89\"",
-                                    "#123#", "#URYYB.GKG#", "\"97hello32\"",
-                                    "#HELLO.TXT#"};
-  char formatStrconOutputs[][MAXWORDLEN] = {"HELLO HOW is 3v3rYTh1nG @89",
-                                            "678", "HELLO.TXT", "97hello32",
-                                           "URYYB.GKG"};
-
-  char printTests[][MAXWORDLEN] = {"\"HELLO HOW is 3v3rYone /@89\"",
-                                   "93075.459", "#URYYB.GKG#", "%", "$%ABC",
-                                   "URYYB.GKG#", "97hello32"};
-  char printTestOutputs[][MAXWORDLEN] = {"HELLO HOW is 3v3rYone /@89",
-                                   "93075.459", "HELLO.TXT"};
-  int printErrorStates[] = {PASS, PASS, PASS, SyntaxERROR,
+  char printTests[][MAXWORDLEN] = {"\"HELLO HOW is 3v3rYTh1nG @89\"",
+                                   "93075.459", "$A", "%JAZZ", "#URYYB.GKG#",
+                                   "%", "$%ABC", "URYYB.GKG#", "97hello32"};
+  int printErrorStates[] = {PASS, PASS, PASS, PASS, PASS, SyntaxERROR,
                             SyntaxERROR, SyntaxERROR, SyntaxERROR};
 
-  /********************************* RND *********************************/
   char rndTests[][MAXWORDLEN] = {"(", "%E", ")",
                                  "(", "%NUMBERVAR", ")",
                                  "(", "%", ")",
                                  "(", "$P", ")",
                                  "(", "%E", "()",
-                                 "[", "%HH", ")"};
+                                 "[", "%E", ")"};
   int rndErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR,
                             SyntaxERROR, SyntaxERROR};
 
-  /**************************** FUNCTIONERROR *********************************/
-  /* All cases should cause function error */
-  char functionErrorTests[][MAXWORDLEN] = {"jUMP", "PRINT ", "inc",
-                                           "Set", "AB0RT"};
+  char functionErrorTests[][MAXWORDLEN] = {"jUMP", "PRINT ", "inc", "Set", "AB0RT"};
 
   /* PROG & INSTRS - test prog & opening/closing brackets */
   /* prog -> '{' -> instrs -> '}' */
@@ -530,11 +487,11 @@ void testGrammarFunc(void) {
   strcpy(testP.words[1], "ABORT");
   strcpy(testP.words[2], "}");
   prog(&testP);
-  assert(testP.errorState == Abort);
+  assert(testP.errorState == PASS);
   mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
-  /* INPUT FUNCTION TESTS
+  /* INPUT FUNCTION TESTS */
   initProgram(&testP, MAXWORDS);
   strcpy(testP.words[0], "{");
   strcpy(testP.words[1], "IN2STR");
@@ -561,7 +518,8 @@ void testGrammarFunc(void) {
     prog(&testP);
     assert(testP.errorState == inputNumErrorStates[i]);
   }
-  freeProgram(&testP, MAXWORDS);*/
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
 
   /* IFCOND FUNCTION TESTS */
   initProgram(&testP, MAXWORDS);
@@ -571,8 +529,359 @@ void testGrammarFunc(void) {
   strcpy(testP.words[4], ",");
   strcpy(testP.words[6], ")");
   strcpy(testP.words[7], "{");
-  strcpy(testP.words[8], "}");
+  strcpy(testP.words[8], "ABORT");
   strcpy(testP.words[9], "}");
+  strcpy(testP.words[10], "}");
+  size = sizeof(ifcondTests)/sizeof(ifcondTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[3], ifcondTests[i]);
+    strcpy(testP.words[5], ifcondTests[i]);
+    prog(&testP);
+    assert(testP.errorState == ifcondErrorStates[i]);
+  }
+  strcpy(testP.words[1], "IFGREATER");
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[3], ifcondTests[i]);
+    strcpy(testP.words[5], ifcondTests[i]);
+    prog(&testP);
+    assert(testP.errorState == ifcondErrorStates[i]);
+  }
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* INC FUNCTION TESTS */
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "INC");
+  strcpy(testP.words[2], "(");
+  strcpy(testP.words[4], ")");
+  strcpy(testP.words[5], "}");
+  size = sizeof(incTests)/sizeof(incTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[3], incTests[i]);
+    prog(&testP);
+    assert(testP.errorState == incErrorStates[i]);
+  }
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* SET FUNCTION TESTS */
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[2], "=");
+  strcpy(testP.words[4], "}");
+  size = sizeof(setTestsSTR1)/sizeof(setTestsSTR1[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[1], setTestsSTR1[i]);
+    strcpy(testP.words[3], setTestsSTR2[i]);
+    prog(&testP);
+    assert(testP.errorState == setErrorStates[i]);
+    testP.errorState = PASS;
+    strcpy(testP.words[1], setTestsNUM1[i]);
+    strcpy(testP.words[3], setTestsNUM2[i]);
+    prog(&testP);
+    assert(testP.errorState == setErrorStates[i]);
+  }
+  strcpy(testP.words[2], "!=");
+  strcpy(testP.words[1], setTestsSTR1[0]);
+  strcpy(testP.words[3], setTestsSTR2[0]);
+  prog(&testP);
+  assert(testP.errorState == SyntaxERROR);
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* JUMP FUNCTION TESTS*/
+  initProgram(&testP, MAXWORDS);
+  testP.totalWords = 50;
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "JUMP");
+  strcpy(testP.words[3], "}");
+  size = sizeof(jumpTests)/sizeof(jumpTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[2], jumpTests[i]);
+    prog(&testP);
+    assert(testP.errorState == jumpErrorStates[i]);
+  }
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* PRINT FUNCTION TESTS*/
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "PRINT");
+  strcpy(testP.words[3], "}");
+  size = sizeof(printTests)/sizeof(printTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[2], printTests[i]);
+    prog(&testP);
+    assert(testP.errorState == printErrorStates[i]);
+  }
+  assert(testP.errorState == SyntaxERROR);
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* RND FUNCTION TESTS*/
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "RND");
+  strcpy(testP.words[5], "}");
+  size = sizeof(rndTests)/sizeof(rndTests[0]);
+  for (i = 0; i < size; i = i + 3) {
+    testP.errorState = PASS;
+    strcpy(testP.words[2], rndTests[i]);
+    strcpy(testP.words[3], rndTests[i+1]);
+    strcpy(testP.words[4], rndTests[i+2]);
+    prog(&testP);
+    assert(testP.errorState == rndErrorStates[i/3]);
+  }
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* TEST FUNCTIONERROR */
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[3], "}");
+  size = sizeof(functionErrorTests)/sizeof(functionErrorTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[1], functionErrorTests[i]);
+    strcpy(testP.words[2], jumpTests[i]);
+    prog(&testP);
+    assert(testP.errorState == FunctionERROR);
+  }
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+}
+
+void interpTestFunc(void) {
+  Program testP;
+  int i, size;
+  float num;
+  char *testStr;
+  FILE *fp;
+
+  /******************************* INPUT ***********************************/
+  char inputStrTests1[][MAXWORDLEN] = {"$C", "$STRVAR", "$VA", "VAR1"};
+  char inputStrTests2[][MAXWORDLEN] = {"$STRVAR", "$TEST", "$VB", "VAR2"};
+  int inputStrErrorStates[] = {PASS, PASS, PASS, SyntaxERROR};
+  char inputNumTests[][MAXWORDLEN] = {"%VAR", "%VA", "%VB", "TEST"};
+  int inputNumErrorStates[] = {PASS, PASS, PASS, SyntaxERROR};
+
+  /******************************* IFCOND ***********************************/
+  char ifcondTests1[][MAXWORDLEN] = {"\"testing\"", "$ABC", "%D", "19.07", "#YUI#",
+                                    "\"hey", "15.3", "\"NINE\""};
+  char ifcondTests2[][MAXWORDLEN] = {"$ABC", "\"Hello\"", "19.07", "%D", "$ABC",
+                                    "\"hey", "\"NINE\"", "15.3"};
+  int ifcondErrorStates[] = {PASS, PASS, PASS, PASS, PASS, StartERROR,
+                             CompERROR, CompERROR};
+
+  /******************************* COMPCONS **********************************/
+  /* $ABC = "testing", %D = 900.4 */
+  int checkCondResults[] = {Equal, Greater, Greater, Less, Less, Less,
+                            Invalid, Invalid};
+
+  /******************************* COMPCONS **********************************/
+  char *strcon1[MAXWORDLEN] = {"More", "Less", "Greater", "Equal",
+                                "Tie", NULL, NULL, NULL, NULL, "Fifteen", NULL};
+  char *strcon2[MAXWORDLEN] = {"Less", "More", "Great", "Equal",
+                                "Tezakdsjf", NULL, NULL, NULL, NULL,
+                                NULL, "1"};
+  float numcon1[] = {FLOAT_INIT_VAL, FLOAT_INIT_VAL, FLOAT_INIT_VAL,
+                     FLOAT_INIT_VAL, FLOAT_INIT_VAL, 16.7, 10.00, 5, 1,
+                     FLOAT_INIT_VAL, 1};
+  float numcon2[] = {FLOAT_INIT_VAL, FLOAT_INIT_VAL, FLOAT_INIT_VAL,
+                     FLOAT_INIT_VAL, FLOAT_INIT_VAL, 13, -100, 5.0000,
+                     1.2, 15, FLOAT_INIT_VAL};
+  int compConsResults[] = {Greater, Less, Greater, Equal, Greater, Greater,
+                           Greater, Equal, Less, Invalid, Invalid};
+
+  /********************************* INC ***********************************/
+  char incNums[][MAXWORDLEN] = {"15", "432.1", "-10", "67.0", "23", "0"};
+  char incNumsResults[][MAXWORDLEN] = {"16", "433.10", "-9.00", "68.00", "24", "1"};
+  char incTests[][MAXWORDLEN] = {"%A", "%C ", "%", "$ABC", "93", ".%K", "%R1"};
+  int incErrorStates[] = {PASS, SyntaxERROR, SyntaxERROR, SyntaxERROR,
+                            SyntaxERROR, SyntaxERROR, SyntaxERROR};
+
+  /********************************* SET ***********************************/
+  /* All 5 arrays should be same size */
+  char setTestsSTR1[][MAXWORDLEN] = {"$A", "$STRVAR", "$D", "$D", "$ROT",
+                                     "$TEST", "$VAR", "$HI=", "$TEST"};
+  char setTestsSTR2[][MAXWORDLEN] = {"\"hi\"", "$A", "\"A A a 8\"", "\"A2\"",
+                                     "#URYYB#", "$VAR", "$VAR","$HI", "%ABC"};
+  char setTestsSTR3[][MAXWORDLEN] = {"\"hi\"", "\"hi\"", "\"A A a 8\"","\"A2\"",
+                                     "#URYYB#", "$VAR", "$VAR","$HI", "%ABC"};
+  char setTestsNUM1[][MAXWORDLEN] = {"%ABC", "%KP", "%D", "%D", "%NUM", "%NUM",
+                                     "%TEST","%HI=", "%FIN"};
+  char setTestsNUM2[][MAXWORDLEN] = {"17.3", "%ABC", "-100.5", "50", "%D",
+                                     "%TEST", "%TEST", "1.3", "$TEST"};
+  char setTestsNUM3[][MAXWORDLEN] = {"17.3", "17.3", "-100.5", "50", "50",
+                                     "%TEST", "%TEST", "1.3", "$TEST"};
+  int setErrorStates[] = {PASS, PASS, PASS, PASS, PASS, VariableERROR,
+                          VariableERROR, SyntaxERROR, SyntaxERROR};
+  /********************************* PRINTVARS *******************************/
+  /* Use settests to test printvars */
+  char printVarsOutputs1[][MAXWORDLEN] = {"hi", "hi", "A A a 8", "A2", "HELLO"};
+  char printVarsOutputs2[][MAXWORDLEN] = {"17.3", "17.3", "-100.5", "50", "50"};
+
+  /********************************* JUMP *******************************/
+  char jumpTests[][MAXWORDLEN] = {"6", "10", "-1", "-5.5", "10.2", "19.0",
+                                  "51", "152"};
+  int jumpErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR, SyntaxERROR,
+                           SyntaxERROR, OverflowERROR, OverflowERROR};
+
+  /***************************** FORMATSTRCON *******************************/
+  char formatStrconTests[][MAXWORDLEN] = {"\"HELLO HOW is 3v3rYTh1nG @89\"",
+                                    "#123#", "#URYYB.GKG#", "\"97hello32\"",
+                                    "#HELLO.TXT#"};
+  char formatStrconOutputs[][MAXWORDLEN] = {"HELLO HOW is 3v3rYTh1nG @89",
+                                            "678", "HELLO.TXT", "97hello32",
+                                           "URYYB.GKG"};
+
+  /********************************* RND *********************************/
+  char rndTests[][MAXWORDLEN] = {"(", "%E", ")",
+                                 "(", "%NUMBERVAR", ")",
+                                 "(", "%", ")",
+                                 "(", "$P", ")",
+                                 "(", "%E", "()",
+                                 "[", "%HH", ")"};
+  int rndErrorStates[] = {PASS, PASS, SyntaxERROR, SyntaxERROR,
+                            SyntaxERROR, SyntaxERROR};
+
+  /**************************** FUNCTIONERROR *********************************/
+  /* All cases should cause function error */
+  char functionErrorTests[][MAXWORDLEN] = {"jUMP", "PRINT ", "inc",
+                                           "Set", "AB0RT"};
+
+  /* PROG & INSTRS - test prog & opening/closing brackets */
+  /* prog -> '{' -> instrs -> '}' */
+  initProgram(&testP, MAXWORDS);
+  /* Check empty array */
+  prog(&testP);
+  assert(testP.errorState == StartERROR);
+  /* Check for no opening bracket */
+  testP.errorState = PASS;
+  strcpy(testP.words[0], "}");
+  prog(&testP);
+  assert(testP.errorState == StartERROR);
+  /* Check for EndERROR - no closing bracket */
+  testP.errorState = PASS;
+  strcpy(testP.words[0], "{");
+  prog(&testP);
+  assert(testP.errorState == EndERROR);
+  /* Check function works for { } */
+  testP.errorState = PASS;
+  strcpy(testP.words[1], "}");
+  prog(&testP);
+  assert(testP.errorState == PASS);
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* INSTRUCT FUNCTIONS */
+  /* prog -> '{' -> instrs -> INSTRUCT -> instrs -> */
+
+  /* FILE FUNCTION TESTS */
+  /* If these filenames already exist, if statement stops from overwriting */
+  /* If this happens, TESTS WILL FAIL */
+  if ((fp = fopen("FILETests1.txt", "r")) == NULL) {
+    fp = fopen("FILETests1.txt", "w");
+    fprintf(fp, "{ FILE \"FILETests2.txt\" }");
+    fclose(fp);
+  }
+  if ((fp = fopen("FILETests2.txt", "r")) == NULL) {
+    fp = fopen("FILETests2.txt", "w");
+    fprintf(fp, "{ FILE #SVYRGrfgf8.gkg# }");
+    fclose(fp);
+  }
+  if ((fp = fopen("FILETests3.txt", "r")) == NULL) {
+    fp = fopen("FILETests3.txt", "w");
+    fprintf(fp, "{ %%A = 5.6 ABORT }");
+    fclose(fp);
+  }
+
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "FILE");
+  strcpy(testP.words[2], "\"FILETests1.txt\"");
+  strcpy(testP.words[3], "}");
+  prog(&testP);
+  assert(mvm_size(testP.vars) > 0);
+  assert(strcmp(mvm_search(testP.vars, "%A"), "5.6") == 0);
+  assert(testP.errorState == Abort);
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+  remove("FILETests1.txt");
+  remove("FILETests2.txt");
+  remove("FILETests3.txt");
+
+  /* ABORT FUNCTION TEST */
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "ABORT");
+  strcpy(testP.words[2], "}");
+  prog(&testP);
+  assert(testP.errorState == Abort);
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* INPUT FUNCTION TESTS */
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "IN2STR");
+  strcpy(testP.words[2], "(");
+  strcpy(testP.words[4], ",");
+  strcpy(testP.words[6], ")");
+  strcpy(testP.words[7], "}");
+  size = sizeof(inputStrTests1)/sizeof(inputStrTests1[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[3], inputStrTests1[i]);
+    strcpy(testP.words[5], inputStrTests2[i]);
+    prog(&testP);
+    assert(testP.errorState == inputStrErrorStates[i]);
+    if (testP.errorState == PASS) {
+      assert(strcmp(mvm_search(testP.vars, inputStrTests1[i]),
+             "\"TESTING\"") == 0);
+      assert(strcmp(mvm_search(testP.vars, inputStrTests2[i]),
+             "\"input\"") == 0);
+    }
+  }
+
+  strcpy(testP.words[1], "INNUM");
+  strcpy(testP.words[4], ")");
+  strcpy(testP.words[5], "}");
+  size = sizeof(inputNumTests)/sizeof(inputNumTests[0]);
+  for (i = 0; i < size; i++) {
+    testP.errorState = PASS;
+    strcpy(testP.words[3], inputNumTests[i]);
+    prog(&testP);
+    assert(testP.errorState == inputNumErrorStates[i]);
+    if (testP.errorState == PASS) {
+      assert(strcmp(mvm_search(testP.vars, inputNumTests[i]), "36") == 0);
+    }
+  }
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* IFCOND FUNCTION TESTS */
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "{");
+  strcpy(testP.words[1], "IFEQUAL");
+  strcpy(testP.words[2], "(");
+  strcpy(testP.words[4], ",");
+  strcpy(testP.words[6], ")");
+  strcpy(testP.words[7], "{");
+  strcpy(testP.words[8], "%A");
+  strcpy(testP.words[9], "=");
+  strcpy(testP.words[10], "3");
+  strcpy(testP.words[11], "}");
+  strcpy(testP.words[12], "}");
   mvm_insert(testP.vars, "$ABC", "\"testing\"");
   mvm_insert(testP.vars, "%D", "900.4");
   size = sizeof(ifcondTests1)/sizeof(ifcondTests1[0]);
@@ -582,6 +891,15 @@ void testGrammarFunc(void) {
     strcpy(testP.words[5], ifcondTests2[i]);
     prog(&testP);
     assert(testP.errorState == ifcondErrorStates[i]);
+    /* Test skipFunction functionality - if condition isn't met, skip code */
+    if (checkCondResults[i] == Equal) {
+      assert(mvm_size(testP.vars) > 2);
+      assert(strcmp(mvm_search(testP.vars, "%A"), "3") == 0);
+      mvm_delete(testP.vars, "%A");
+    }
+    else {
+      assert(mvm_size(testP.vars) == 2);
+    }
   }
   strcpy(testP.words[1], "IFGREATER");
   for (i = 0; i < size; i++) {
@@ -590,9 +908,44 @@ void testGrammarFunc(void) {
     strcpy(testP.words[5], ifcondTests2[i]);
     prog(&testP);
     assert(testP.errorState == ifcondErrorStates[i]);
+    /* Test skipFunction functionality - if condition isn't met, skip code */
+    if (checkCondResults[i] == Greater) {
+      assert(mvm_size(testP.vars) > 2);
+      assert(strcmp(mvm_search(testP.vars, "%A"), "3") == 0);
+      mvm_delete(testP.vars, "%A");
+    }
+    else {
+      assert(mvm_size(testP.vars) == 2);
+    }
   }
   mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
+
+
+  /* CHECKCOND FUNCTION TESTS */
+  initProgram(&testP, MAXWORDS);
+  strcpy(testP.words[0], "(");
+  strcpy(testP.words[2], ",");
+  strcpy(testP.words[4], ")");
+  mvm_insert(testP.vars, "$ABC", "\"testing\"");
+  mvm_insert(testP.vars, "%D", "900.4");
+  size = sizeof(ifcondTests1)/sizeof(ifcondTests1[0]);
+  for (i = 0; i < size; i++) {
+    testP.currWord = 0;
+    testP.errorState = PASS;
+    strcpy(testP.words[1], ifcondTests1[i]);
+    strcpy(testP.words[3], ifcondTests2[i]);
+    assert(checkCond(&testP) == checkCondResults[i]);
+  }
+  mvm_free(&testP.vars);
+  freeProgram(&testP, MAXWORDS);
+
+  /* COMPCONS FUNCTION TESTS */
+  size = sizeof(compConsResults)/sizeof(compConsResults[0]);
+  for (i = 0; i < size; i++) {
+    assert(compCons(strcon1[i], numcon1[i], strcon2[i], numcon2[i])
+           == compConsResults[i]);
+  }
 
   /* INC FUNCTION TESTS */
   initProgram(&testP, MAXWORDS);
@@ -683,28 +1036,6 @@ void testGrammarFunc(void) {
   mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
 
-  /* PRINT FUNCTION TESTS*
-  fprintf(stdout, "===================\n");
-  fprintf(stdout, "PRINT TESTS \n \n");
-  initProgram(&testP, MAXWORDS);
-  strcpy(testP.words[0], "{");
-  strcpy(testP.words[1], "PRINT");
-  strcpy(testP.words[3], "}");
-  size = sizeof(printTests)/sizeof(printTests[0]);
-  for (i = 0; i < size; i++) {
-    testP.errorState = PASS;
-    strcpy(testP.words[2], printTests[i]);
-    prog(&testP);
-    assert(testP.errorState == printErrorStates[i]);
-    if (printErrorStates[i] == PASS) {
-      fprintf(stdout, "Expected output: %s\n \n", printTestOutputs[i]);
-    }
-  }
-  assert(testP.errorState == SyntaxERROR);
-  mvm_free(&testP.vars);
-  freeProgram(&testP, MAXWORDS);
-  fprintf(stdout, "===================\n");*/
-
   /*FORMATSTRCON TESTS */
   size = sizeof(formatStrconTests)/sizeof(formatStrconTests[0]);
   for (i = 0; i < size; i++) {
@@ -737,7 +1068,6 @@ void testGrammarFunc(void) {
   }
   mvm_free(&testP.vars);
   freeProgram(&testP, MAXWORDS);
-
 
 
   /* RND FUNCTION TESTS*/
@@ -824,16 +1154,6 @@ void instruct(Program *p) {
   if (p->errorState != PASS) {
     return;
   }
-  /* If instruct is called, every function is tested to see if it matches
-  // Nothing is returned from each function, so no way of knowing if the
-  // function has been called correctly - unless we check if the program
-  // has moved on to the next word:
-  // If it moves to the next word WITHOUT an errorState, function has been
-  // called correctly and loop exits
-  // If it moves to next word but has invalid future syntax, the functions
-  // will catch it and change the error state, exiting the loop
-  // If it goes through the whole while loop without going to the next word,
-  // none of the functions have been called and a FunctionERROR is thrown */
   if (checked == FALSE) {
     file(p, &checked);
   }
@@ -869,10 +1189,6 @@ void instruct(Program *p) {
 /* ALL INSTRUCTION FUNCTIONS */
 
 void file(Program *p, bool *checked) {
-  char *fileStr;
-  FILE *fp;
-  int maxWords;
-  Program newP;
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
@@ -880,29 +1196,39 @@ void file(Program *p, bool *checked) {
   if (strcmp(p->words[p->currWord], "FILE") == 0) {
     nextWord(p);
     if (strcon(p)) {
-      fileStr = formatStrcon(p->words[p->currWord]);
-      if ((fp = fopen(fileStr, "r")) == NULL) {
-        p->errorState = FileERROR;
-        free(fileStr);
-        return;
-      }
-      fseek(fp, 0, SEEK_END);
-      maxWords = ftell(fp);
-      rewind(fp);
-      initProgram(&newP, maxWords);
-      fillWords(&newP, fp);
-      mvm_free(&newP.vars);
-      newP.vars = p->vars;
-      prog(&newP);
-      p->errorState = newP.errorState;
-      freeProgram(&newP, maxWords);
-      fclose(fp);
-      free(fileStr);
+      #ifdef INTERP
+      openNewFile(p);
+      #endif
       *checked = TRUE;
       return;
     }
     p->errorState = SyntaxERROR;
   }
+}
+
+void openNewFile(Program *p) {
+  char *fileStr;
+  FILE *fp;
+  int maxWords;
+  Program newP;
+  fileStr = formatStrcon(p->words[p->currWord]);
+  if ((fp = fopen(fileStr, "r")) == NULL) {
+    p->errorState = FileERROR;
+    free(fileStr);
+    return;
+  }
+  fseek(fp, 0, SEEK_END);
+  maxWords = ftell(fp);
+  rewind(fp);
+  initProgram(&newP, maxWords);
+  fillWords(&newP, fp);
+  mvm_free(&newP.vars);
+  newP.vars = p->vars;
+  prog(&newP);
+  p->errorState = newP.errorState;
+  freeProgram(&newP, maxWords);
+  fclose(fp);
+  free(fileStr);
 }
 
 void abortEX(Program *p, bool *checked) {
@@ -911,15 +1237,25 @@ void abortEX(Program *p, bool *checked) {
     return;
   }
   if (strcmp(p->words[p->currWord], "ABORT") == 0) {
+    #ifdef INTERP
     p->errorState = Abort;
+    #endif
     *checked = TRUE;
     return;
   }
 }
 
 void input(Program *p, bool *checked) {
-  char key1[MAXWORDLEN], key2[MAXWORDLEN], userInput1[MAXWORDLEN], userInput2[MAXWORDLEN];
+  char key1[MAXWORDLEN], key2[MAXWORDLEN];
+  #ifdef INTERP
+  #ifdef TEST
+  char userInput1[MAXWORDLEN], userInput2[MAXWORDLEN];
+  #else
   char data1[MAXWORDLEN], data2[MAXWORDLEN];
+  char userInput1[MAXWORDLEN], userInput2[MAXWORDLEN];
+  #endif
+  #endif
+
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
@@ -937,6 +1273,13 @@ void input(Program *p, bool *checked) {
             strcpy(key2, p->words[p->currWord]);
             nextWord(p);
             if (strcmp(p->words[p->currWord], ")") == 0) {
+              #ifdef INTERP
+              #ifdef TEST
+              sprintf(userInput1, "\"TESTING\"");
+              sprintf(userInput2, "\"input\"");
+              mvm_insert(p->vars, key1, userInput1);
+              mvm_insert(p->vars, key2, userInput2);
+              #else
               if (scanf("%97s %97s", userInput1, userInput2) != 2) {
                 p->errorState = VariableERROR;
                 return;
@@ -945,6 +1288,8 @@ void input(Program *p, bool *checked) {
               sprintf(data2, "\"%s\"", userInput2);
               mvm_insert(p->vars, key1, data1);
               mvm_insert(p->vars, key2, data2);
+              #endif
+              #endif
               *checked = TRUE;
               return;
             }
@@ -963,11 +1308,18 @@ void input(Program *p, bool *checked) {
         strcpy(key1, p->words[p->currWord]);
         nextWord(p);
         if (strcmp(p->words[p->currWord], ")") == 0) {
+          #ifdef INTERP
+          #ifdef TEST
+          sprintf(userInput1, "36");
+          mvm_insert(p->vars, key1, userInput1);
+          #else
           if (scanf("%99s", userInput1) != 1) {
             p->errorState = VariableERROR;
             return;
           }
           mvm_insert(p->vars, key1, userInput1);
+          #endif
+          #endif
           *checked = TRUE;
           return;
         }
@@ -978,15 +1330,11 @@ void input(Program *p, bool *checked) {
 }
 
 void ifcond(Program *p, bool *checked) {
-  int count = 0;
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
   }
-
-  if (strcmp(p->words[p->currWord], "IFEQUAL") == 0) {/*
-    printstr = mvm_print(p->vars);
-    fprintf(stderr, "%s\n", printstr);*/
+  if (strcmp(p->words[p->currWord], "IFEQUAL") == 0) {
     nextWord(p);
     if (checkCond(p) == Equal) {
       nextWord(p);
@@ -1001,23 +1349,7 @@ void ifcond(Program *p, bool *checked) {
       }
     }
     else {
-      nextWord(p);
-      if (strcmp(p->words[p->currWord], "{") == 0) {
-        count = 1;
-        while (count > 0 && p->errorState == PASS) {
-          nextWord(p);
-          if (strcmp(p->words[p->currWord], "{") == 0) {
-            count++;
-          }
-          if (strcmp(p->words[p->currWord], "}") == 0) {
-            count--;
-          }
-        }
-      }
-      else {
-        p->errorState = StartERROR;
-        return;
-      }
+      skipFunction(p);
       *checked = TRUE;
     }
   }
@@ -1037,40 +1369,47 @@ void ifcond(Program *p, bool *checked) {
       }
     }
     else {
-      nextWord(p);
-      if (strcmp(p->words[p->currWord], "{") == 0) {
-        count = 1;
-        while (count > 0 && p->errorState == PASS) {
-          nextWord(p);
-          if (strcmp(p->words[p->currWord], "{") == 0) {
-            count++;
-          }
-          if (strcmp(p->words[p->currWord], "}") == 0) {
-            count--;
-          }
-        }
-      }
-      else {
-        p->errorState = StartERROR;
-        return;
-      }
+      skipFunction(p);
       *checked = TRUE;
     }
   }
 }
 
-/* Change to bool, write function with cases for each state of p - str,
-// num, var (var converts to either strcon or numcon) */
+/* Skips nested functions if conditions aren't met */
+void skipFunction(Program *p) {
+  int count = 0;
+  nextWord(p);
+  if (strcmp(p->words[p->currWord], "{") == 0) {
+    count = 1;
+    while (count > 0 && p->errorState == PASS) {
+      nextWord(p);
+      if (strcmp(p->words[p->currWord], "{") == 0) {
+        count++;
+      }
+      if (strcmp(p->words[p->currWord], "}") == 0) {
+        count--;
+      }
+    }
+  }
+  else {
+    p->errorState = StartERROR;
+    return;
+  }
+}
+
 int checkCond(Program *p) {
+  #ifdef INTERP
   char *strcon1 = NULL, *strcon2 = NULL;
   float numcon1 = FLOAT_INIT_VAL, numcon2 = FLOAT_INIT_VAL;
-  int result;
+  #endif
+  int result = 0;
   if (p->errorState != PASS) {
     return Less;
   }
   if (strcmp(p->words[p->currWord], "(") == 0) {
     nextWord(p);
     varcon(p);
+    #ifdef INTERP
     if (strcon(p)) {
       strcon1 = formatStrcon(p->words[p->currWord]);
     }
@@ -1083,11 +1422,13 @@ int checkCond(Program *p) {
     else if (numvar(p)) {
       numcon1 = strtod(printVars(p), NULL);
     }
+    #endif
     if (p->errorState == PASS) {
       nextWord(p);
       if (strcmp(p->words[p->currWord], ",") == 0) {
         nextWord(p);
         varcon(p);
+        #ifdef INTERP
         if (strcon(p)) {
           strcon2 = formatStrcon(p->words[p->currWord]);
         }
@@ -1100,9 +1441,11 @@ int checkCond(Program *p) {
         else if (numvar(p)) {
           numcon2 = strtod(printVars(p), NULL);
         }
+        #endif
         if (p->errorState == PASS) {
           nextWord(p);
           if (strcmp(p->words[p->currWord], ")") == 0) {
+            #ifdef INTERP
             result = compCons(strcon1, numcon1, strcon2, numcon2);
             if (strcon1 != NULL) {
               free(strcon1);
@@ -1113,6 +1456,7 @@ int checkCond(Program *p) {
             if (result == Invalid) {
               p->errorState = CompERROR;
             }
+            #endif
             return result;
           }
         }
@@ -1123,8 +1467,8 @@ int checkCond(Program *p) {
   return Less;
 }
 
-/* Return 1 if first var is greater than, 0 if equal, -1 if first
-// is smaller, -100 if invalid comparison */
+/* Return Greater if first var is greater than, Equal if equal, Less if first
+// is smaller, Invalid if invalid comparison */
 int compCons(char *strcon1, float numcon1, char *strcon2, float numcon2) {
   if (strcon1 != NULL && strcon2 != NULL) {
     if (strcmp(strcon1, strcon2) > 0) {
@@ -1153,8 +1497,10 @@ int compCons(char *strcon1, float numcon1, char *strcon2, float numcon2) {
 }
 
 void inc(Program *p, bool *checked) {
+  #ifdef INTERP
   double i;
   char newData[MAXWORDLEN], *oldData;
+  #endif
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
@@ -1164,12 +1510,13 @@ void inc(Program *p, bool *checked) {
     if (strcmp(p->words[p->currWord], "(") == 0) {
       nextWord(p);
       if (numvar(p)) {
+        #ifdef INTERP
         if (mvm_size(p->vars) > 0) {
           if (mvm_search(p->vars, p->words[p->currWord]) != NULL) {
             oldData = mvm_search(p->vars, p->words[p->currWord]);
             i = strtod(oldData, NULL);
             i = i + 1;
-            if (isInteger(oldData)) {
+            if (isPosInteger(oldData)) {
               sprintf(newData, "%.0f", i);
             }
             else {
@@ -1177,16 +1524,19 @@ void inc(Program *p, bool *checked) {
             }
             mvm_delete(p->vars, p->words[p->currWord]);
             mvm_insert(p->vars, p->words[p->currWord], newData);
+            #endif
             nextWord(p);
             if (strcmp(p->words[p->currWord], ")") == 0) {
               *checked = TRUE;
               return;
+              #ifdef INTERP
             }
           }
           else {
             p->errorState = VariableERROR;
             return;
           }
+          #endif
         }
       }
     }
@@ -1196,7 +1546,10 @@ void inc(Program *p, bool *checked) {
 
 /* Use mvm to store variables */
 void set(Program *p, bool *checked) {
-  char key[MAXWORDLEN], *result;
+  char key[MAXWORDLEN];
+  #ifdef INTERP
+  char *result;
+  #endif
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
@@ -1206,6 +1559,7 @@ void set(Program *p, bool *checked) {
     nextWord(p);
     if (strcmp(p->words[p->currWord], "=") == 0) {
       nextWord(p);
+      #ifdef INTERP
       if (strcon(p)) {
         mvm_insert(p->vars, key, p->words[p->currWord]);
         *checked = TRUE;
@@ -1224,6 +1578,11 @@ void set(Program *p, bool *checked) {
         p->errorState = VariableERROR;
         return;
       }
+      #endif
+      if (strcon(p) || strvar(p)) {
+        *checked = TRUE;
+        return;
+      }
     }
     p->errorState = SyntaxERROR;
     return;
@@ -1234,6 +1593,7 @@ void set(Program *p, bool *checked) {
     nextWord(p);
     if (strcmp(p->words[p->currWord], "=") == 0) {
       nextWord(p);
+      #ifdef INTERP
       if (numcon(p)) {
         mvm_insert(p->vars, key, p->words[p->currWord]);
         *checked = TRUE;
@@ -1252,6 +1612,11 @@ void set(Program *p, bool *checked) {
         p->errorState = VariableERROR;
         return;
       }
+      #endif
+      if (numcon(p) || numvar(p)) {
+        *checked = TRUE;
+        return;
+      }
     }
     p->errorState = SyntaxERROR;
     return;
@@ -1268,7 +1633,7 @@ void jump(Program *p, bool *checked) {
   if (strcmp(p->words[p->currWord], "JUMP") == 0) {
     nextWord(p);
     if (numcon(p)) {
-      if (!isInteger(p->words[p->currWord])) {
+      if (!isPosInteger(p->words[p->currWord])) {
         p->errorState = SyntaxERROR;
         return;
       }
@@ -1277,7 +1642,9 @@ void jump(Program *p, bool *checked) {
         p->errorState = OverflowERROR;
         return;
       }
+      #ifdef INTERP
       p->currWord = i-1;
+      #endif
       *checked = TRUE;
     }
     else {
@@ -1298,19 +1665,25 @@ void print(Program *p, bool *checked) {
     /* Special case only for PRINT (Not PRINTN) */
     if (strcmp(p->words[p->currWord], "\"\"") == 0) {
       p->errorState = PASS;
+      #ifdef INTERP
       fprintf(stdout, "\n");
+      #endif
       *checked = TRUE;
       return;
     }
+    #ifdef INTERP
     printVarCon(p);
     fprintf(stdout, "\n");
+    #endif
     *checked = TRUE;
   }
 
   if (strcmp(p->words[p->currWord], "PRINTN") == 0) {
     nextWord(p);
     varcon(p);
+    #ifdef INTERP
     printVarCon(p);
+    #endif
     *checked = TRUE;
   }
 }
@@ -1379,7 +1752,10 @@ char *printVars(Program *p) {
 }
 
 void rnd(Program *p, bool *checked) {
-  char newData[MAXWORDLEN], key[MAXWORDLEN];
+  #ifdef INTERP
+  char newData[MAXWORDLEN];
+  #endif
+  char key[MAXWORDLEN];
   /* Line of code at start of every function */
   if (p->errorState != PASS) {
     return;
@@ -1392,8 +1768,10 @@ void rnd(Program *p, bool *checked) {
         strcpy(key, p->words[p->currWord]);
         nextWord(p);
         if (strcmp(p->words[p->currWord], ")") == 0) {
+          #ifdef INTERP
           sprintf(newData, "%d", rand() % 100);
           mvm_insert(p->vars, key, newData);
+          #endif
           *checked = TRUE;
           return;
         }
@@ -1556,7 +1934,8 @@ void nextWord(Program *p) {
   }
 }
 
-bool isInteger(char *number) {
+/* Returns true for positive integers */
+bool isPosInteger(char *number) {
   int length = strlen(number), i;
   for (i = 0; i < length; i++) {
     if (number[i] == '.' || number[i] == '-') {
@@ -1599,7 +1978,11 @@ void ROTDecode(char *ROTString) {
 void printState(Program *p) {
   switch (p->errorState) {
     case PASS:
+      #ifdef INTERP
       fprintf(stderr, "Interpreted OK\n");
+      #else
+      fprintf(stderr, "Parsed OK\n");
+      #endif
       break;
     case StartERROR:
       fprintf(stderr, "\nERROR - Expected a '{' at word %d: '%s'\n",

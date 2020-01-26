@@ -122,12 +122,6 @@
       $VB = "2393"
    }
 
-   PRINTN "VA = "
-   PRINT $VA
-
-   PRINTN "VB = "
-   PRINT $VB
-
    IFEQUAL ( $VA , "NONE" ) {
       PRINTN "I don't understand"
       PRINT $A

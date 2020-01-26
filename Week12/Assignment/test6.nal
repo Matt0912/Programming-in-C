@@ -3,7 +3,6 @@
    PRINT "I'm thinking of a number (0-99).\nCan you guess it?"
    RND ( %MINE )
    %CNT = 0
-   PRINT %MINE
 
    INC ( %CNT )
    PRINT "Type in your guess"
@@ -26,5 +25,4 @@
       PRINT %CNT
       ABORT
    }
-} } }
 }
